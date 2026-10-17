@@ -1,6 +1,6 @@
 # AM Dowloader — third-party software
 
-AM Dowloader 1.3.0 is provided with its complete application source under GNU AGPL-3.0-or-later; see LICENSE.txt. It is independent software and is not affiliated with Apple Inc. Apple Music names and catalog artwork belong to their respective owners. Catalog artwork is fetched at runtime and is not included in this package.
+AM Dowloader 1.5.2 is provided with its complete application source under GNU AGPL-3.0-or-later; see LICENSE.txt. It is independent software and is not affiliated with Apple Inc. Apple Music names and catalog artwork belong to their respective owners. Catalog artwork is fetched at runtime and is not included in this package.
 
 The package includes AppleMusicDecrypt v2 at commit d1a9a10079a72a454ce013589a5a47d5c17c8aee, its public runtime dependencies and pristine wrapper-manager image. No user's account image, preferences, credentials or music are included. Upstream: https://github.com/WorldObservationLog/AppleMusicDecrypt (GNU AGPL v3). The complete modified backend Python source, dependency lock and license are in backend; the application and reproducible integration patches are in source. See backend/PATCHES.md and backend/bundle.json for exact provenance and changes.
 
