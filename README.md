@@ -9,6 +9,7 @@
 
 <p align="center">
   <a href="https://github.com/Lauk1z/AM-Downloader/releases/latest">下载桌面版</a> ·
+  <a href="#界面预览">界面预览</a> ·
   <a href="#播放与解码规格">播放规格</a> ·
   <a href="#从源码构建">源码构建</a> ·
   <a href="#使用与免责声明">使用与免责声明</a>
@@ -19,6 +20,28 @@ AM Downloader 是一款面向 Windows 的音乐下载、本地播放与资料库
 也可以只把它作为本地播放器使用：导入文件或整个文件夹，浏览不同版本的专辑，无需登录 Apple 账号。
 
 **当前桌面版：1.5.2。**现有程序内部名称及可执行文件仍为 `AM Dowloader` / `AM Dowloader.exe`，与本仓库的 AM Downloader 指同一软件。项目由独立开发者维护，与 Apple Inc. 无隶属、合作或背书关系。
+
+## 界面预览
+
+### 主界面
+
+通过专辑卡片浏览资料库和最近添加的音乐，顶部播放器与左侧导航保持可用。
+
+![AM Downloader 主界面：专辑卡片、音乐资料库导航与顶部播放器](docs/screenshots/home.png)
+
+### 歌词侧栏
+
+在主界面旁展开歌词，支持时间轴高亮、平滑滚动和点击歌词跳转。
+
+![AM Downloader 歌词侧栏：在资料库旁查看歌曲歌词](docs/screenshots/lyrics.png)
+
+### 音频输出设置
+
+可选择系统共享、WASAPI 独占或 ASIO 输出，并设置设备及 DSD 播放方式。下图展示系统共享模式；原生 DSD / DoP 的可用能力取决于实际设备和驱动。
+
+![AM Downloader 音频输出设置：输出模式、设备、DSD 播放方式与应用设置](docs/screenshots/audio-output.png)
+
+截图展示软件实际界面；其中的专辑封面与歌词版权归各自权利人所有。
 
 ## 主要功能
 
@@ -175,6 +198,13 @@ py -3.12 -m venv .build-venv
 | [desktop/CHANGELOG.md](desktop/CHANGELOG.md) | 桌面版历史更新记录 |
 
 上游 `.github/workflows/win-build.yml` 仍属于 v3 工程，生成的是上游命令行包；本桌面版请使用上述 `desktop` 构建步骤或下载本仓库 Releases 附件。
+
+## Contributors
+
+| 贡献者 | 参与内容 |
+| --- | --- |
+| [Lauk1z](https://github.com/Lauk1z) | 项目维护、需求与界面设计、功能验收和版本发布 |
+| Codex（OpenAI，AI 编程助手） | 在维护者指导下辅助实现功能、排查问题、编写测试与整理文档 |
 
 ## 开源许可与致谢
 
