@@ -199,13 +199,6 @@ py -3.12 -m venv .build-venv
 
 上游 `.github/workflows/win-build.yml` 仍属于 v3 工程，生成的是上游命令行包；本桌面版请使用上述 `desktop` 构建步骤或下载本仓库 Releases 附件。
 
-## Contributors
-
-| 贡献者 | 参与内容 |
-| --- | --- |
-| [Lauk1z](https://github.com/Lauk1z) | 项目维护、需求与界面设计、功能验收和版本发布 |
-| Codex（OpenAI，AI 编程助手） | 在维护者指导下辅助实现功能、排查问题、编写测试与整理文档 |
-
 ## 开源许可与致谢
 
 项目代码按 **GNU AGPL-3.0-or-later** 提供，详见 [LICENSE.txt](LICENSE.txt)。再分发和修改时请履行适用许可证的源码提供与声明保留义务；软件许可证不授予音乐、封面、歌词或商标的使用权。
