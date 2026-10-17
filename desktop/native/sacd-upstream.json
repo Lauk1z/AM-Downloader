@@ -1,0 +1,8 @@
+{
+  "repository": "https://github.com/netxing/sacd_extract",
+  "tag": "sacd_extract_fixed",
+  "commit": "9fae7fa5b66a391eb2ef2d69384352e895680f0d",
+  "sha256": "e79f79957650a10a4845fc3e7efe59c6ca4b0045ad5ad63026324cf4727f84cc",
+  "bytes": 1204224,
+  "source_sha256": "293a0cec23502bf40b9db82ac3738ded7073dafa65813af8fa462cd88e55ff1d"
+}

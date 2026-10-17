@@ -223,3 +223,11 @@ AGENTS.md.bak-*
 # 这两个目录里的内容是某次会话的产物，公开仓库没有保留它们的理由。
 .dsh-progress/
 .dsh-uploads/
+
+# Desktop build output and local account data are not repository content.
+.codex/
+.codex-remote-attachments/
+musicdesk-data/
+preferences.json
+*.qcow2
+*.qcow2.xz
