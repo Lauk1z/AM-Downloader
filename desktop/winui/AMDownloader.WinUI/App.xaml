@@ -1,0 +1,30 @@
+<Application
+    x:Class="AMDownloader.WinUI.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+            </ResourceDictionary.MergedDictionaries>
+            <Color x:Key="SystemAccentColor">#FF3565</Color>
+            <Color x:Key="SystemAccentColorLight1">#FF5E84</Color>
+            <Color x:Key="SystemAccentColorLight2">#FF3565</Color>
+            <Color x:Key="SystemAccentColorLight3">#FF94AF</Color>
+            <Color x:Key="SystemAccentColorDark1">#E3305B</Color>
+            <Color x:Key="SystemAccentColorDark2">#C92A51</Color>
+            <Color x:Key="SystemAccentColorDark3">#A92344</Color>
+            <SolidColorBrush x:Key="ListViewItemSelectionIndicatorBrush" Color="#FF3565" />
+            <SolidColorBrush x:Key="SystemControlHighlightAccentBrush" Color="#FF3565" />
+            <SolidColorBrush x:Key="AccentFillColorDefaultBrush" Color="#FF3565" />
+            <SolidColorBrush x:Key="AccentFillColorSecondaryBrush" Color="#E3305B" />
+            <SolidColorBrush x:Key="AccentFillColorTertiaryBrush" Color="#C92A51" />
+            <SolidColorBrush x:Key="AccentButtonBackground" Color="#FF3565" />
+            <SolidColorBrush x:Key="AccentButtonBackgroundPointerOver" Color="#E3305B" />
+            <SolidColorBrush x:Key="AccentButtonBackgroundPressed" Color="#C92A51" />
+            <SolidColorBrush x:Key="AccentButtonForeground" Color="White" />
+            <SolidColorBrush x:Key="AccentButtonForegroundPointerOver" Color="White" />
+            <SolidColorBrush x:Key="AccentButtonForegroundPressed" Color="White" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

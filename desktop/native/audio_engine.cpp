@@ -92,8 +92,8 @@ struct Stream {
     Stream(uint32_t r,uint32_t ch,std::string f):rate(r),channels(ch),format(f),ring(std::min<size_t>(64*1024*1024,std::max<size_t>(1024*1024,size_t(r)*ch/2))) {}
     size_t unit() const { return channels*(format=="pcm"?4:format=="dop"?2:1); }
     uint32_t frame_rate() const { return format=="dsd"?rate/8:format=="dop"?rate/16:rate; }
-    void start(const std::wstring& file,const std::wstring& decoder,uint64_t position) {
-        if(format=="pcm") pcm=std::make_unique<PcmPipe>(decoder,file,position);
+    void start(const std::wstring& file,const std::wstring& decoder,uint64_t position,bool shared=false) {
+        if(format=="pcm") pcm=std::make_unique<PcmPipe>(decoder,file,position,shared?rate:0,shared?channels:0);
         else {
             dsd=std::make_unique<DsdFile>(file,position);
             if(dsd->rate!=rate || dsd->channels!=channels) throw std::runtime_error("DSD source format mismatch");
@@ -139,17 +139,28 @@ static WAVEFORMATEXTENSIBLE wave_format(uint32_t rate,uint32_t ch,int bits,int v
 struct Wasapi {
     ComPtr<IMMDevice> device; ComPtr<IAudioClient> client; ComPtr<IAudioRenderClient> render;
     HANDLE event=CreateEventW(nullptr,FALSE,FALSE,nullptr); UINT32 frames=0;
-    WAVEFORMATEXTENSIBLE wave{}; std::string name;
-    void init(const std::wstring& id,Stream& stream,int sourceBits) {
+    WAVEFORMATEXTENSIBLE wave{}; std::string name; bool shared=false;
+    ComPtr<ISimpleAudioVolume> volume;
+    void init(const std::wstring& id,Stream& stream,int sourceBits,bool useShared=false) {
+        shared=useShared;
         auto e=enumerator(); HRESULT opened=E_FAIL;
         // Some USB drivers rebuild their WASAPI endpoint after leaving ASIO DSD.
         for(int attempt=0;attempt<15;++attempt) {
-            check(e->GetDevice(id.c_str(),&device),"Selected output is unavailable");
+            check(id.empty() && shared ? e->GetDefaultAudioEndpoint(eRender,eMultimedia,&device) : e->GetDevice(id.c_str(),&device),"Selected output is unavailable");
             opened=device->Activate(__uuidof(IAudioClient),CLSCTX_ALL,nullptr,&client);
             if(opened!=AUDCLNT_E_DEVICE_INVALIDATED) break;
             Sleep(100);
         }
         check(opened,"Open output"); name=device_name(device.Get());
+        if(shared) {
+            wave=wave_format(stream.frame_rate(),stream.channels,32,32);
+            check(client->Initialize(AUDCLNT_SHAREMODE_SHARED,AUDCLNT_STREAMFLAGS_EVENTCALLBACK|AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM|AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY,0,0,&wave.Format,nullptr),"WASAPI shared initialization");
+            check(client->SetEventHandle(event),"Shared output event");
+            check(client->GetBufferSize(&frames),"Shared output buffer");
+            check(client->GetService(IID_PPV_ARGS(&render)),"Shared output service");
+            check(client->GetService(IID_PPV_ARGS(&volume)),"Shared session volume");
+            stream.prepare(frames); return;
+        }
         bool found=false;
         for(auto [bits,valid]:std::vector<std::pair<int,int>>{{32,32},{32,24},{24,24},{16,16}}) {
             if(valid < (stream.format=="dop"?24:sourceBits)) continue;
@@ -169,19 +180,22 @@ struct Wasapi {
         check(client->GetBufferSize(&frames),"Output buffer"); check(client->GetService(IID_PPV_ARGS(&render)),"Output service"); stream.prepare(frames);
     }
     void fill(Stream& stream) {
-        BYTE* data; check(render->GetBuffer(frames,&data),"Output buffer lost"); stream.pull(frames);
+        UINT32 count=frames;
+        if(shared) { UINT32 padding=0; check(client->GetCurrentPadding(&padding),"Shared output padding"); count=frames-padding; }
+        if(!count) return;
+        BYTE* data; check(render->GetBuffer(count,&data),"Output buffer lost"); stream.pull(count);
         int bytes=wave.Format.wBitsPerSample/8;
-        for(UINT32 f=0;f<frames;++f) for(uint32_t c=0;c<stream.channels;++c) {
+        for(UINT32 f=0;f<count;++f) for(uint32_t c=0;c<stream.channels;++c) {
             uint32_t value=stream.sample(f,c)>>(32-wave.Format.wBitsPerSample);
             memcpy(data+(f*stream.channels+c)*bytes,&value,bytes);
         }
-        stream.markerFrame+=frames; check(render->ReleaseBuffer(frames,0),"Send output");
+        stream.markerFrame+=count; check(render->ReleaseBuffer(count,0),"Send output");
     }
     ~Wasapi() { if(client) client->Stop(); CloseHandle(event); }
 };
 
 struct Asio {
-    IASIO* driver=nullptr; Stream* stream=nullptr; bool buffers=false, running=false;
+    IASIO* driver=nullptr; Stream* stream=nullptr; bool initialized=false, buffers=false, running=false;
     std::vector<ASIOBufferInfo> info; std::vector<ASIOChannelInfo> channels;
     long frames=0; int outputBits=32; std::string name; std::atomic<bool> reset{false};
     static Asio* active;
@@ -198,8 +212,13 @@ struct Asio {
     void open(const std::wstring& id) {
         CLSID cls; check(CLSIDFromString(id.c_str(),&cls),"ASIO driver ID");
         check(CoCreateInstance(cls,nullptr,CLSCTX_INPROC_SERVER,cls,reinterpret_cast<void**>(&driver)),"Load ASIO driver");
-        if(!driver->init(GetDesktopWindow())) throw std::runtime_error("ASIO device is disconnected or busy");
-        char text[256]{}; driver->getDriverName(text); name=text;
+        name=utf8(id); for(auto& device:asio_devices()) if(device.id==id) {name=utf8(device.name);break;}
+        if(!driver->init(GetDesktopWindow())) {
+            char error[256]{}; driver->getErrorMessage(error);
+            throw std::runtime_error("ASIO 驱动初始化失败："+name+(error[0]?" · "+std::string(error):"")+"。请确认选择的是 DAC 对应的驱动，并检查设备连接及其他程序占用。");
+        }
+        initialized=true;
+        char text[256]{}; driver->getDriverName(text); if(text[0]) name=text;
     }
     void mode(bool dsd) {
         ASIOIoFormat format{}; format.FormatType=dsd?kASIODSDFormat:kASIOPCMFormat;
@@ -252,7 +271,7 @@ struct Asio {
     void play() {asio_check(driver->start(),"Start ASIO output");running=true;}
     void pause() {if(running) asio_check(driver->stop(),"Pause ASIO output");running=false;}
     ~Asio() {
-        if(driver) { if(running) driver->stop(); if(buffers) driver->disposeBuffers(); ASIOIoFormat f{}; f.FormatType=kASIOPCMFormat; driver->future(kAsioSetIoFormat,&f); driver->Release(); }
+        if(driver) { if(running) driver->stop(); if(buffers) driver->disposeBuffers(); if(initialized) { ASIOIoFormat f{}; f.FormatType=kASIOPCMFormat; driver->future(kAsioSetIoFormat,&f); } driver->Release(); }
         if(active==this) active=nullptr;
     }
 };
@@ -275,14 +294,15 @@ static int run(int argc,wchar_t** argv) {
     if(args.count(L"--probe-asio")) {probe_asio(args[L"--probe-asio"]);return 0;}
     auto format=utf8(args[L"--format"]); auto mode=utf8(args[L"--mode"]);
     if(format!="pcm" && format!="dop" && format!="dsd") throw std::runtime_error("Invalid output format");
-    if(mode!="wasapi" && mode!="asio" && mode!="render") throw std::runtime_error("Invalid output mode");
+    if(mode!="wasapi" && mode!="asio" && mode!="render" && mode!="shared") throw std::runtime_error("Invalid output mode");
+    if(mode=="shared" && format!="pcm") throw std::runtime_error("Shared output requires PCM decoding");
     if(format=="dsd" && mode=="wasapi") throw std::runtime_error("Native DSD requires ASIO");
     uint32_t rate=std::stoul(args[L"--rate"]), channels=std::stoul(args[L"--channels"]);
     if(!rate || rate>50000000 || !channels || channels>32) throw std::runtime_error("Invalid audio format");
     int bits=args.count(L"--bits")?std::stoi(args[L"--bits"]):24;
     uint64_t position=args.count(L"--position")?std::stoull(args[L"--position"]):0;
     Stream stream(rate,channels,format);
-    stream.start(args[L"--file"],args[L"--ffmpeg"],position);
+    stream.start(args[L"--file"],args[L"--ffmpeg"],position,mode=="shared");
     auto deadline=GetTickCount64()+15000;
     while(stream.ring.available()<std::min<size_t>(stream.ring.bytes.size()/2,stream.frame_rate()*stream.unit()/4) && !stream.eof) {
         if(GetTickCount64()>deadline) throw std::runtime_error("Audio prebuffer timed out"); Sleep(2);
@@ -303,10 +323,12 @@ static int run(int argc,wchar_t** argv) {
         return 0;
     }
     Wasapi wasapi; Asio asio; std::string name; uint32_t bufferFrames; int outputBits=1;
-    if(mode=="wasapi") {wasapi.init(args[L"--device"],stream,bits);name=wasapi.name;bufferFrames=wasapi.frames;outputBits=wasapi.wave.Samples.wValidBitsPerSample;}
+    bool windowsOutput=mode=="wasapi" || mode=="shared";
+    if(windowsOutput) {wasapi.init(args[L"--device"],stream,bits,mode=="shared");name=wasapi.name;bufferFrames=wasapi.frames;outputBits=wasapi.wave.Samples.wValidBitsPerSample;}
     else {asio.init(args[L"--device"],stream,bits);name=asio.name;bufferFrames=uint32_t(asio.frames);outputBits=asio.outputBits;}
     DWORD task=0; HANDLE priority=AvSetMmThreadCharacteristicsW(L"Pro Audio",&task);
-    if(mode=="wasapi") {wasapi.fill(stream);check(wasapi.client->Start(),"Start exclusive output");} else asio.play();
+    if(mode=="shared") check(wasapi.volume->SetMasterVolume(args.count(L"--volume")?std::stof(args[L"--volume"]):.65f,nullptr),"Shared volume");
+    if(windowsOutput) {wasapi.fill(stream);check(wasapi.client->Start(),"Start Windows output");} else asio.play();
     std::cout<<"{\"event\":\"ready\",\"mode\":"<<json(mode)<<",\"format\":"<<json(format)<<",\"device\":"<<json(name)<<",\"rate\":"<<(format=="dsd"?rate:stream.frame_rate())<<",\"bits\":"<<outputBits<<",\"buffer_frames\":"<<bufferFrames<<"}"<<std::endl;
     bool paused=false,finished=false; std::string commands; auto last=GetTickCount64(), drained=uint64_t(0), lastBuffer=last, lastConsumed=uint64_t(0);
     while(!finished) {
@@ -320,11 +342,12 @@ static int run(int argc,wchar_t** argv) {
                 auto cmd=commands.substr(0,nl);commands.erase(0,nl+1);
                 if(!cmd.empty() && cmd.back()=='\r') cmd.pop_back();
                 if(cmd=="stop") finished=true;
+                else if(mode=="shared" && cmd.rfind("volume ",0)==0) check(wasapi.volume->SetMasterVolume(std::clamp(std::stof(cmd.substr(7)),0.f,1.f),nullptr),"Shared volume");
                 else if(cmd=="pause" && !paused) {
-                    if(mode=="wasapi") check(wasapi.client->Stop(),"Pause output"); else asio.pause(); paused=true;
+                    if(windowsOutput) check(wasapi.client->Stop(),"Pause output"); else asio.pause(); paused=true;
                     std::cout<<"{\"event\":\"paused\"}"<<std::endl;
                 } else if(cmd=="resume" && paused) {
-                    if(mode=="wasapi") check(wasapi.client->Start(),"Resume output"); else asio.play();paused=false;lastBuffer=GetTickCount64();
+                    if(windowsOutput) check(wasapi.client->Start(),"Resume output"); else asio.play();paused=false;lastBuffer=GetTickCount64();
                     std::cout<<"{\"event\":\"playing\"}"<<std::endl;
                 }
             }
@@ -333,7 +356,7 @@ static int run(int argc,wchar_t** argv) {
         if(stream.failed) throw std::runtime_error(stream.error);
         if(stream.underrun) throw std::runtime_error("Audio buffer underrun; output stopped to preserve the DSD/PCM stream");
         if(asio.reset) throw std::runtime_error("ASIO driver requested a reset; select the device and play again");
-        if(!paused && mode=="wasapi") {
+        if(!paused && windowsOutput) {
             if(WaitForSingleObject(wasapi.event,5)==WAIT_OBJECT_0) {wasapi.fill(stream);lastBuffer=GetTickCount64();}
             else if(GetTickCount64()-lastBuffer>3000) throw std::runtime_error("Output device stopped responding or was disconnected");
         } else Sleep(5);

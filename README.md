@@ -5,10 +5,11 @@
 <h1 align="center">AM Downloader</h1>
 
 <p align="center">音乐下载 · Hi-Fi 本地播放 · 音乐资料库管理</p>
-<p align="center">Windows x64 · WASAPI / ASIO · 原生 DSD / DoP · CUE / SACD ISO</p>
+<p align="center">原生 WinUI 3 · Windows x64 · WASAPI / ASIO · 原生 DSD / DoP · CUE / SACD ISO</p>
 
 <p align="center">
-  <a href="https://github.com/Lauk1z/AM-Downloader/releases/latest">下载桌面版</a> ·
+  <a href="https://github.com/Lauk1z/AM-Downloader/releases/tag/v2.0.0-preview.1">下载 WinUI 3 预览版</a> ·
+  <a href="https://github.com/Lauk1z/AM-Downloader/releases/tag/v1.5.2">1.5.2 稳定版</a> ·
   <a href="#界面预览">界面预览</a> ·
   <a href="#播放与解码规格">播放规格</a> ·
   <a href="#从源码构建">源码构建</a> ·
@@ -17,9 +18,11 @@
 
 AM Downloader 是一款面向 Windows 的音乐下载、本地播放与资料库管理软件。它在 [AppleMusicDecrypt](https://github.com/WorldObservationLog/AppleMusicDecrypt) 的基础上加入桌面界面，提供下载队列、专辑与艺人浏览、歌词、标签与封面编辑、自定义歌单，以及面向兼容 DAC 的独占输出。
 
+**2.0 原生重构：**窗口、页面、动画、播放控制、队列、登录、设置、托盘与单实例逻辑迁移到 **C# + WinUI 3 + Windows Composition**。新程序不加载 Qt、PySide6 或 Qt Multimedia；继续使用 C++ 音频引擎、AppleMusicDecrypt 后端和独立的无 Qt Python 资料库工具进程，保留原有布局和操作逻辑。详见 [本次大升级说明](docs/releases/v2.0.0-preview.1.md)。
+
 也可以只把它作为本地播放器使用：导入文件或整个文件夹，浏览不同版本的专辑，无需登录 Apple 账号。
 
-**当前桌面版：1.5.2。**现有程序内部名称及可执行文件仍为 `AM Dowloader` / `AM Dowloader.exe`，与本仓库的 AM Downloader 指同一软件。项目由独立开发者维护，与 Apple Inc. 无隶属、合作或背书关系。
+**当前 WinUI 预览版：2.0.0-preview.1；稳定版：1.5.2。**新版运行入口是 `AM Downloader WinUI.exe`，界面名称沿用 `AM Dowloader`。这是原生重构的首次公开预览，真实 Apple 账号、DAC 独占播放和部分编码样本仍需实机验收；不把旧 Qt 版的硬件测试当作新版测试结果。项目由独立开发者维护，与 Apple Inc. 无隶属、合作或背书关系。
 
 ## 界面预览
 
@@ -27,21 +30,21 @@ AM Downloader 是一款面向 Windows 的音乐下载、本地播放与资料库
 
 通过专辑卡片浏览资料库和最近添加的音乐，顶部播放器与左侧导航保持可用。
 
-![AM Downloader 主界面：专辑卡片、音乐资料库导航与顶部播放器](docs/screenshots/home.png)
+![AM Downloader WinUI 3 主界面：专辑卡片、音乐资料库导航与顶部播放器](docs/screenshots/winui-home.png)
 
 ### 歌词侧栏
 
 在主界面旁展开歌词，支持时间轴高亮、平滑滚动和点击歌词跳转。
 
-![AM Downloader 歌词侧栏：在资料库旁查看歌曲歌词](docs/screenshots/lyrics.png)
+![AM Downloader WinUI 3 歌词侧栏：在资料库旁查看歌曲歌词](docs/screenshots/winui-lyrics.png)
 
 ### 音频输出设置
 
-可选择系统共享、WASAPI 独占或 ASIO 输出，并设置设备及 DSD 播放方式。下图展示系统共享模式；原生 DSD / DoP 的可用能力取决于实际设备和驱动。
+可选择系统共享、WASAPI 独占或 ASIO 输出，并设置设备及 DSD 播放方式。下图保留 **1.5.2 Qt 版**的输出设置供功能参考，不能代表新版控件外观；WinUI 版保留这些设置，新增驱动选择与失败回滚修复。原生 DSD / DoP 的可用能力取决于实际设备和驱动。
 
 ![AM Downloader 音频输出设置：输出模式、设备、DSD 播放方式与应用设置](docs/screenshots/audio-output.png)
 
-截图展示软件实际界面；其中的专辑封面与歌词版权归各自权利人所有。
+前两张为 WinUI 3 正式发布 EXE 在独立测试资料库中的实际渲染，使用生成的封面和示例歌词；第三张为旧版实际界面。其中的第三方专辑封面与歌词版权归各自权利人所有。
 
 ## 主要功能
 
@@ -66,13 +69,20 @@ AM Downloader 是一款面向 Windows 的音乐下载、本地播放与资料库
 
 ## 下载与开始使用
 
-在 [Releases](https://github.com/Lauk1z/AM-Downloader/releases) 下载 **Windows x64** 发布包，ZIP 与 7z 任选一个。将整个 `AM Dowloader` 文件夹解压，运行 `AM Dowloader.exe`。
+在 [2.0.0-preview.1 Release](https://github.com/Lauk1z/AM-Downloader/releases/tag/v2.0.0-preview.1) 下载 `AM-Downloader-2.0.0-preview.1-WinUI3-Windows-x64.zip`，完整解压到新文件夹，运行 `AM Downloader WinUI.exe`。这是便携 ZIP，不是安装器；源码归档不能直接运行。
 
-- 请保留 `_internal`、`backend`、`native` 等随包目录，不能只复制 EXE。
-- 无需另外安装 Python、QEMU 或 foobar2000 插件；使用 ASIO 时需自行安装 DAC 厂商的兼容驱动。
-- 1.5.2 约为 **341 MB（7z）/ 460 MB（ZIP）**，解压约 **868 MB**，均为十进制单位。用户账号镜像、音乐和播放缓存另占空间。
-- 面向 Windows 10 / 11 64 位。后端可使用已启用且可用的 Windows Hypervisor Platform 加速；不可用时采用兼容方式，不会自行开启 Windows 功能。首次初始化需要额外时间和磁盘空间。
-- Releases 同时提供 `SHA256SUMS.txt` 与发行文件清单，供核对下载完整性。
+- Windows 10 2004（19041）及更新版本，x64。包内带 .NET 和 Windows App SDK 运行时，无需另装 Python、.NET SDK、QEMU 或 foobar2000 插件；ASIO 需自行安装 DAC 对应的 64 位驱动。
+- 保留整个解压目录及其子目录，不能只复制 EXE。ZIP **463,731,349 字节（约 442 MiB）**，解压约 **842 MiB**；账号镜像、音乐和播放缓存另占空间。
+- 后端可使用已启用且可用的 Windows Hypervisor Platform 加速；不可用时采用兼容方式，不自行开启 Windows 功能。首次初始化需要额外时间与磁盘空间。
+- 发布页提供 `SHA256SUMS.txt`；包内 `manifest.sha256.json` 可核对全部文件。
+- 1.5.2 稳定版仍可单独下载，入口为 `AM Dowloader.exe`，其 `_internal` 等目录不能与 WinUI 包混用。
+
+### 从 1.5.2 迁移
+
+1. 在托盘菜单正常退出旧版，再打开 WinUI 版，避免两个版本同时写同一份资料库。
+2. 新版默认继续使用 `%LOCALAPPDATA%\MusicDesk`，兼容原有资料库路径、收藏、歌单、队列、最后歌曲和同一 Windows 用户的 DPAPI 账号信息；首次写入前备份原偏好文件。升级前仍建议自行备份重要数据。
+3. 先试用独立资料库时，可运行 `& '.\AM Downloader WinUI.exe' --data-dir 'D:\AM-WinUI-Test'`。
+4. ZIP 不会自动卸载或覆盖旧版；回退前也应先正常退出新版。
 
 ### 本地播放
 
@@ -117,7 +127,7 @@ M4A、Ogg、WavPack 等容器按实际编码识别，不把整个扩展名等同
 
 | 模式 | PCM | DSD | 音量与处理 |
 | --- | --- | --- | --- |
-| 系统共享 | Qt Multimedia / FFmpeg 解码，经 Windows 音频系统输出 | 解码为 PCM | 可调软件音量；最终输出受系统混音器和设备设置影响 |
+| 系统共享 | FFmpeg 解码为 PCM，由原生音频主机经 Windows 共享音频系统输出 | 解码为 PCM | 可调软件音量；最终输出受系统混音器和设备设置影响 |
 | WASAPI 独占 | 按源采样率请求设备，协商可用整数位深 | DoP | 旁路软件音量，不主动重采样或混音 |
 | ASIO | 按源采样率请求厂商驱动，协商可用整数位深 | 原生 DSD 或 DoP | 旁路软件音量；需兼容的 64 位厂商 ASIO 驱动 |
 
@@ -151,7 +161,9 @@ M4A、Ogg、WavPack 等容器按实际编码识别，不把整个扩展名等同
 
 下载设置支持 ALAC、AAC、Dolby Digital / Atmos 及相关 AAC 选项；ALAC 采样率上限可选 44.1 / 48 / 96 / 192 kHz，位深上限可选 16 / 24 bit。最终文件取决于实际音源、账号地区和权限，所选格式不可用时由用户确认替代格式。**这些下载上限不限制本地文件的播放规格。**
 
-1.5.2 的单实例、关闭选择与相关播放回归共 50 项通过，并验证正式 EXE 的模块一致性和重启恢复。音频历史验收包括 24 个合成文件样本、DSD64–512 字节与 DoP 封装检查，以及特定 SMSL DAC / 厂商驱动的输出测试；不代表所有设备或每次发布都完成硬件复测。真实商业 SACD / DST 镜像及全部编码变体尚未全面验证。详见 [测试记录](desktop/TEST_REPORT.md)。
+本次 WinUI 版通过 **126 项核心断言、26 项引擎测试、4 项音频服务回归，以及正式发布 EXE 的 25 项界面与生命周期检查**。包内 4,409 个文件经校验，并在仓库外独立解压运行；18 种生成音频、DSD64–512 / DoP 字节与定位检查通过。USB DAC ASIO 驱动连续三次查询报告 DSD64 / 128 / 256 / 512，这只证明能力查询，不证明相应档位已实际播放。
+
+真实 Apple 登录与下载、实际 DAC 的 WASAPI / ASIO / DoP / 原生 DSD 播放、真实 APE / TAK / Musepack / DST 样本及高刷新率动画体验，尚需新版实机验收。详见 [WinUI 验证与待验收范围](desktop/winui/MIGRATION.md)。[旧版测试记录](desktop/TEST_REPORT.md) 仅作为历史参考。
 
 ## 资料库与文件管理
 
@@ -170,28 +182,31 @@ M4A、Ogg、WavPack 等容器按实际编码识别，不把整个扩展名等同
 
 ## 从源码构建
 
-桌面版源码位于 [`desktop/`](desktop/)。需要 **Windows x64、Python 3.12、Visual Studio C++ x64 构建工具及 Windows SDK**；生成 7z 包另需 7-Zip。首次构建需联网获取固定版本的第三方运行包。
+WinUI 源码位于 [`desktop/winui/`](desktop/winui/)。需要 **Windows x64、.NET 10 SDK、Python 3.12、Visual Studio C++ x64 Build Tools 和 Windows SDK**。首次构建需联网获取固定版本的 NuGet 包和后端运行包。
 
 ```powershell
 git clone https://github.com/Lauk1z/AM-Downloader.git
 cd AM-Downloader\desktop
-py -3.12 -m venv .build-venv
-.\.build-venv\Scripts\python.exe -m pip install -r requirements-build.txt
-.\.build-venv\Scripts\python.exe build.py
-.\.build-venv\Scripts\python.exe package_release.py --7z
+py -3.12 winui/build_native.py
+dotnet run --project winui/AMDownloader.Tests/AMDownloader.Tests.csproj
+dotnet run --project winui/tests/AudioService.Tests -- qa/audio-service
+dotnet build winui/AMDownloader.WinUI/AMDownloader.WinUI.csproj
+py -3.12 winui/build_package.py --output winui/artifacts/my-winui-build
 ```
 
-输出位于 `desktop\dist\AM Dowloader`，归档、文件清单及校验和位于 `desktop\release`。只生成 ZIP 时省略 `--7z`。
+输出位于 `desktop\winui\artifacts\my-winui-build` 及同名 ZIP，带逐文件清单和归档校验和。新建构建目录，脚本不会覆盖已有包。独立解压验收命令及测试依赖见 [WinUI 构建说明](desktop/winui/README.md)。原 Qt 工程保留在 `desktop/`，其 `build.py` / `package_release.py` 构建的是旧版。
 
 后端以 `build_backend.py` 中固定的提交、运行包和 SHA-256 为准，集成修改由 `backend_patches.py` 应用。原上游 Actions 附件已不可获取，因此本仓库在 1.5.2 Release 镜像保存原始 `AppleMusicDecrypt-v2-runtime.zip`，构建脚本使用该固定地址并保留原 SHA-256 校验。普通使用只需下载桌面 ZIP 或 7z，**不必另下这个构建运行包**。发布包内同时保留对应后端源码、依赖清单与组件来源。
 
 ### Fork 与目录说明
 
-本仓库 Fork 自 [WorldObservationLog/AppleMusicDecrypt](https://github.com/WorldObservationLog/AppleMusicDecrypt)，保留其提交历史及 `v3` 命令行 / TUI 源码。**桌面版 1.5.2 仍固定集成 v2 后端提交 `d1a9a10079a72a454ce013589a5a47d5c17c8aee`，尚未迁移到 v3。**
+本仓库 Fork 自 [WorldObservationLog/AppleMusicDecrypt](https://github.com/WorldObservationLog/AppleMusicDecrypt)，保留其提交历史及 `v3` 命令行 / TUI 源码。**WinUI 2.0 预览版和 Qt 1.5.2 都固定集成 v2 后端提交 `d1a9a10079a72a454ce013589a5a47d5c17c8aee`，尚未迁移到 v3 下载后端。**WinUI 重构改变应用层，不代表升级了下载后端版本。
 
 | 路径 | 用途 |
 | --- | --- |
-| `desktop/` | 本项目 Windows 桌面端、原生音频引擎、集成补丁、测试与构建脚本 |
+| `desktop/winui/` | 新的 C# / WinUI 3 应用、无 Qt 资料库进程、测试与发布构建脚本 |
+| `desktop/native/` | WinUI 和旧版共用的 C++ WASAPI / ASIO / DSD 音频主机及 SACD 组件 |
+| `desktop/` 其他文件 | 保留的 Qt 桌面端、后端集成补丁、媒体工具、测试与构建脚本 |
 | `src/`、`main.py`、`qemu/` | Fork 时保留的上游 v3 源码 |
 | 根目录 `requirements.txt`、`pyproject.toml`、`uv.lock` | 上游 v3 依赖；不是桌面版构建依赖 |
 | [UPSTREAM_README.md](UPSTREAM_README.md) | Fork 时保留的上游说明 |
@@ -203,7 +218,7 @@ py -3.12 -m venv .build-venv
 
 项目代码按 **GNU AGPL-3.0-or-later** 提供，详见 [LICENSE.txt](LICENSE.txt)。再分发和修改时请履行适用许可证的源码提供与声明保留义务；软件许可证不授予音乐、封面、歌词或商标的使用权。
 
-感谢 AppleMusicDecrypt、Qt / PySide6、FFmpeg、QEMU、Mutagen、GPAC、Bento4、sacd_extract 等项目。第三方组件各自适用其许可证，来源和文本见 [THIRD_PARTY_NOTICES.md](desktop/THIRD_PARTY_NOTICES.md) 与 [licenses](desktop/licenses)。ASIO SDK 使用其 GPLv3 许可选项，厂商 ASIO 驱动不随包分发。
+感谢 AppleMusicDecrypt、WinUI / Windows App SDK、.NET、FFmpeg、QEMU、Mutagen、GPAC、Bento4、sacd_extract，以及旧版使用的 Qt / PySide6 等项目。WinUI 发布包不使用 Qt 运行库。第三方组件各自适用其许可证，来源和文本见 [WinUI 第三方声明](desktop/winui/THIRD_PARTY_NOTICES.md)、[旧版声明](desktop/THIRD_PARTY_NOTICES.md) 与 [licenses](desktop/licenses)。ASIO SDK 使用其 GPLv3 许可选项，厂商 ASIO 驱动不随包分发。
 
 Apple、Apple Music、ASIO、Dolby 等名称与商标归各自权利人所有，提及仅用于说明功能、来源与兼容性，不表示获得认证或背书。
 

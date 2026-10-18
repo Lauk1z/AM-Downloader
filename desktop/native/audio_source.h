@@ -117,14 +117,17 @@ inline std::wstring quoted(const std::wstring& s) {
 class PcmPipe {
     HANDLE pipe = nullptr, process = nullptr, job = nullptr;
 public:
-    PcmPipe(const std::wstring& ffmpeg, const std::wstring& path, uint64_t position) {
+    PcmPipe(const std::wstring& ffmpeg, const std::wstring& path, uint64_t position, uint32_t rate=0, uint32_t channels=0) {
         SECURITY_ATTRIBUTES sa{sizeof(sa),nullptr,TRUE}; HANDLE writer = nullptr;
         if (!CreatePipe(&pipe,&writer,&sa,0)) throw std::runtime_error("Cannot create decoder pipe");
         SetHandleInformation(pipe,HANDLE_FLAG_INHERIT,0);
         HANDLE null = CreateFileW(L"NUL",GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,&sa,OPEN_EXISTING,0,nullptr);
         STARTUPINFOW si{sizeof(si)}; si.dwFlags=STARTF_USESTDHANDLES; si.hStdInput=null; si.hStdError=null; si.hStdOutput=writer;
         PROCESS_INFORMATION pi{};
-        auto command = quoted(ffmpeg)+L" -nostdin -v error -ss "+std::to_wstring(position/1000.0)+L" -i "+quoted(path)+L" -map 0:a:0 -vn -sn -dn -c:a pcm_s32le -f s32le pipe:1";
+        auto command = quoted(ffmpeg)+L" -nostdin -v error -ss "+std::to_wstring(position/1000.0)+L" -i "+quoted(path)+L" -map 0:a:0 -vn -sn -dn";
+        if(rate) command+=L" -ar "+std::to_wstring(rate);
+        if(channels) command+=L" -ac "+std::to_wstring(channels);
+        command+=L" -c:a pcm_s32le -f s32le pipe:1";
         bool ok = CreateProcessW(ffmpeg.c_str(),command.data(),nullptr,nullptr,TRUE,CREATE_NO_WINDOW|CREATE_SUSPENDED,nullptr,nullptr,&si,&pi);
         CloseHandle(writer); CloseHandle(null);
         if (!ok) { CloseHandle(pipe); pipe=nullptr; throw std::runtime_error("Cannot start bundled FFmpeg"); }
