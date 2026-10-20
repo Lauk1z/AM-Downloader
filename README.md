@@ -8,7 +8,7 @@
 <p align="center">原生 WinUI 3 · Windows x64 · WASAPI / ASIO · 原生 DSD / DoP · CUE / SACD ISO</p>
 
 <p align="center">
-  <a href="https://github.com/Lauk1z/AM-Downloader/releases/tag/v2.0.0-preview.2">下载 WinUI 3 预览版</a> ·
+  <a href="https://github.com/Lauk1z/AM-Downloader/releases/tag/v2.0.0-preview.3">下载 WinUI 3 预览版</a> ·
   <a href="https://github.com/Lauk1z/AM-Downloader/releases/tag/v1.5.2">1.5.2 稳定版</a> ·
   <a href="#界面预览">界面预览</a> ·
   <a href="#播放与解码规格">播放规格</a> ·
@@ -22,7 +22,7 @@ AM Downloader 是一款面向 Windows 的音乐下载、本地播放与资料库
 
 也可以只把它作为本地播放器使用：导入文件或整个文件夹，浏览不同版本的专辑，无需登录 Apple 账号。
 
-**当前 WinUI 预览版：2.0.0-preview.2；稳定版：1.5.2。**新版运行入口是 `AM Downloader WinUI.exe`，界面名称沿用 `AM Dowloader`。本次统一重绘 28 组圆润图标，详见 [图标更新说明](docs/releases/v2.0.0-preview.2.md)。真实 Apple 账号、DAC 独占播放和部分编码样本仍需实机验收；不把旧 Qt 版的硬件测试当作新版测试结果。项目由独立开发者维护，与 Apple Inc. 无隶属、合作或背书关系。
+**当前 WinUI 预览版：2.0.0-preview.3；稳定版：1.5.2。**新版运行入口是 `AM Downloader WinUI.exe`，界面名称沿用 `AM Dowloader`。本次修复歌曲列表高亮叠加，加入歌词上下渐隐、逐字高亮与浮起，并提供安装版 EXE，详见 [更新说明](docs/releases/v2.0.0-preview.3.md)。真实 Apple 账号、DAC 独占播放和部分编码样本仍需实机验收；不把旧 Qt 版的硬件测试当作新版测试结果。项目由独立开发者维护，与 Apple Inc. 无隶属、合作或背书关系。
 
 ## 界面预览
 
@@ -34,7 +34,7 @@ AM Downloader 是一款面向 Windows 的音乐下载、本地播放与资料库
 
 ### 歌词侧栏
 
-在主界面旁展开歌词，支持时间轴高亮、平滑滚动和点击歌词跳转。
+在主界面旁展开歌词，支持上下渐隐、逐字高亮与轻微浮起、平滑滚动和点击跳转。有增强 LRC 时间标记时按标记同步，普通 LRC 的句内进度按时间估算；下图为原生文字的静态捕获，不包含 Composition 渐隐遮罩。
 
 ![AM Downloader WinUI 3 歌词侧栏：在资料库旁查看歌曲歌词](docs/screenshots/winui-lyrics.png)
 
@@ -58,7 +58,7 @@ AM Downloader 是一款面向 Windows 的音乐下载、本地播放与资料库
 | 专辑与艺人 | 专辑详情、艺人双栏浏览；按专辑艺人、版本与目录区分同名专辑 |
 | 标签与封面 | 右键专辑批量编辑歌名、艺人、专辑、专辑艺人、年份、碟号、曲序、版本和封面 |
 | 自定义歌单 | 新建、重命名、多选拖入、拖动排序，导入 / 导出 M3U 与 M3U8 |
-| 歌词 | 本地 LRC 时间轴、当前行高亮、平滑滚动、点击歌词跳转及歌词侧栏 |
+| 歌词 | 本地／增强 LRC、上下渐隐、逐字高亮与浮起、平滑滚动和点击跳转；普通 LRC 的逐字进度按句内时间估算 |
 | 播放队列 | 独立的「正在播放」侧栏，支持下一首播放、最后播放、排序、移除及重启恢复 |
 | 播放方式 | 顺序、循环和每轮不重复的洗牌随机；自动切歌前留出 2 秒间隔，手动切歌立即响应 |
 | 输出链路 | 查看源格式、解码或 DSD 传输方式、接口、设备、音量处理与实际协商状态 |
@@ -69,10 +69,11 @@ AM Downloader 是一款面向 Windows 的音乐下载、本地播放与资料库
 
 ## 下载与开始使用
 
-在 [2.0.0-preview.2 Release](https://github.com/Lauk1z/AM-Downloader/releases/tag/v2.0.0-preview.2) 下载 `AM-Downloader-2.0.0-preview.2-WinUI3-Windows-x64.zip`，完整解压到新文件夹，运行 `AM Downloader WinUI.exe`。这是便携 ZIP，不是安装器；源码归档不能直接运行。
+在 [2.0.0-preview.3 Release](https://github.com/Lauk1z/AM-Downloader/releases/tag/v2.0.0-preview.3) 下载 `AM-Downloader-2.0.0-preview.3-WinUI3-Windows-x64-Setup.exe` 安装版，或选择同版本便携 ZIP，完整解压后运行 `AM Downloader WinUI.exe`。源码归档不能直接运行。升级前请在托盘菜单选择「退出」。
 
 - Windows 10 2004（19041）及更新版本，x64。包内带 .NET 和 Windows App SDK 运行时，无需另装 Python、.NET SDK、QEMU 或 foobar2000 插件；ASIO 需自行安装 DAC 对应的 64 位驱动。
-- 保留整个解压目录及其子目录，不能只复制 EXE。ZIP **463,765,692 字节（约 442 MiB）**，解压约 **842 MiB**；账号镜像、音乐和播放缓存另占空间。
+- 安装版约 **374 MiB**，默认安装到当前用户的 `%LOCALAPPDATA%\Programs\AM Downloader`，支持选择目录、开始菜单／可选桌面快捷方式及卸载。卸载保留个人资料库和音乐，安装器尚未进行代码签名。
+- 便携版保留整个解压目录及其子目录，不能只复制 EXE。ZIP **463,894,837 字节（约 442 MiB）**，解压约 **842 MiB**；账号镜像、音乐和播放缓存另占空间。
 - 后端可使用已启用且可用的 Windows Hypervisor Platform 加速；不可用时采用兼容方式，不自行开启 Windows 功能。首次初始化需要额外时间与磁盘空间。
 - 发布页提供 `SHA256SUMS.txt`；包内 `manifest.sha256.json` 可核对全部文件。
 - 1.5.2 稳定版仍可单独下载，入口为 `AM Dowloader.exe`，其 `_internal` 等目录不能与 WinUI 包混用。
@@ -161,7 +162,7 @@ M4A、Ogg、WavPack 等容器按实际编码识别，不把整个扩展名等同
 
 下载设置支持 ALAC、AAC、Dolby Digital / Atmos 及相关 AAC 选项；ALAC 采样率上限可选 44.1 / 48 / 96 / 192 kHz，位深上限可选 16 / 24 bit。最终文件取决于实际音源、账号地区和权限，所选格式不可用时由用户确认替代格式。**这些下载上限不限制本地文件的播放规格。**
 
-WinUI preview.1 已通过 **126 项核心断言、26 项引擎测试、4 项音频服务回归，以及正式发布 EXE 的 25 项界面与生命周期检查**；18 种生成音频、DSD64–512 / DoP 字节与定位检查通过。preview.2 补充 28 组图标的三种尺寸和四种状态检查，正式发布包的 **4,410 个文件**经校验并在仓库外独立解压运行。此前 USB DAC ASIO 驱动连续三次查询报告 DSD64 / 128 / 256 / 512，这只证明能力查询，不证明相应档位已实际播放。
+WinUI preview.1 已通过 **126 项核心断言、26 项引擎测试、4 项音频服务回归，以及正式发布 EXE 的 25 项界面与生命周期检查**；18 种生成音频、DSD64–512 / DoP 字节与定位检查通过。preview.2 补充 28 组图标的三种尺寸和四种状态检查。preview.3 已通过 **132 项核心断言、正式包 28 项原生集成检查、4,414 个文件的校验与包外运行，以及安装／覆盖升级／卸载检查**。歌词渐隐的合成连接已检查，动态观感和帧率尚未人工验收。此前 USB DAC ASIO 驱动连续三次查询报告 DSD64 / 128 / 256 / 512，这只证明能力查询，不证明相应档位已实际播放。
 
 真实 Apple 登录与下载、实际 DAC 的 WASAPI / ASIO / DoP / 原生 DSD 播放、真实 APE / TAK / Musepack / DST 样本及高刷新率动画体验，尚需新版实机验收。详见 [WinUI 验证与待验收范围](desktop/winui/MIGRATION.md)。[旧版测试记录](desktop/TEST_REPORT.md) 仅作为历史参考。
 

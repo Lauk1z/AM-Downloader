@@ -20,6 +20,17 @@ try
     var lyrics = Lyrics.Parse("[offset:-250]\n[00:00.00]Intro\n[00:01.50][00:02.50]Main\n[00:01.50]Translation");
     Check(lyrics.Count == 3 && lyrics[1].Time == 1250 && lyrics[1].Content == "Main\nTranslation", "LRC offset and translation grouping");
     Check(Lyrics.Active(lyrics, 1249) == 0 && Lyrics.Active(lyrics, 1250) == 1, "lyric time boundary");
+    var wordLyrics = Lyrics.Parse("[offset:-250]\n[00:01.00][00:11.00]<00:01.00>你好<00:03.00>世界<00:05.00>\n[00:06.00]Next");
+    var glyphs = Lyrics.Timing(wordLyrics[0], 5750);
+    Check(wordLyrics[0].Content == "你好世界" && glyphs.Select(x => x.Start).SequenceEqual(new long[] { 750, 1750, 2750, 3750 }) && glyphs[^1].End == 4750, "enhanced LRC word times, final marker and offset");
+    Check(Lyrics.Timing(wordLyrics[^1], 15000)[0].Start == 10750, "repeated LRC stamp shifts word timestamps");
+    glyphs = Lyrics.Timing(Lyrics.Parse("[00:01.00]前奏<00:03.00>歌词<00:05.00>")[0], 6000);
+    Check(glyphs[0].Start == 1000 && glyphs[1].End == 3000 && glyphs[2].Start == 3000, "enhanced LRC prefix ends at first word timestamp");
+    glyphs = Lyrics.Timing(new(1000, "你好\n世界"), 5000);
+    Check(glyphs.Count == 4 && glyphs[0].Start == glyphs[2].Start && glyphs[1].End == glyphs[3].End, "translations progress in parallel");
+    glyphs = Lyrics.Timing(new(1000, "A\U0001f3b5e\u0301"), 4000);
+    Check(glyphs.Count == 3 && glyphs[1].Length == 2 && glyphs[2].Length == 2 && glyphs[2].End == 4000, "karaoke timing preserves Unicode graphemes");
+    Check(Lyrics.Timing(new(null, "plain"), 5000).Count == 0, "untimed lyrics do not invent a playback time");
     var audio = Path.Combine(root, "曲目.wav"); File.WriteAllBytes(audio, []); var cue = Path.Combine(root, "整轨.cue"); File.WriteAllText(cue, "");
     var entries = new List<PlaylistEntry> { new(audio, "曲目", "艺人", 123), new(audio, "曲目", "艺人", 123), new(cue + "#amtrack=2", "二", "", 5), new(Path.Combine(root, "missing.flac"), "缺失", "", 2) };
     var filename = Path.Combine(root, "list.m3u8"); M3u.Write(filename, "测试歌单", entries); var imported = M3u.Read(filename);

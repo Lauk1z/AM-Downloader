@@ -2,6 +2,7 @@ using Microsoft.UI;
 using Microsoft.UI.Composition;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Hosting;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -46,6 +47,12 @@ internal static class Ui
         if (Equals(button.Tag, glyph)) return;
         button.Tag = glyph;
         button.Content = Icons.Create(glyph, size, button);
+    }
+    public static Button MenuIcon(string tip, Func<MenuFlyout> factory, double size = 21)
+    {
+        var button = Icon("more", tip, () => { }, size);
+        button.Click += (_, _) => { FlyoutBase.SetAttachedFlyout(button, factory()); FlyoutBase.ShowAttachedFlyout(button); };
+        return button;
     }
     public static Image Image(string source, double size)
     {

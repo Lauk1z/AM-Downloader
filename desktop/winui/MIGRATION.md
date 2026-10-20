@@ -83,6 +83,26 @@ preview, not an assertion that every online service or DAC has been tested.
   `--audio-device` optionally selects a WASAPI endpoint for the isolated silent
   fixture, without changing the user's audio configuration.
 
+## Preview.3 UI and installer evidence
+
+- Core tests now pass **132 assertions**, including enhanced LRC timestamps,
+  offsets, parallel translations and Unicode grapheme timing.
+- The Release archive passes **28 native smoke check records** across eleven
+  pages when extracted outside the development tree. Song tables have one
+  rounded highlight surface; selection, hover, drag/reorder and 160-row container
+  recycling retain the same bounds and background. Menu anchors and accelerator
+  tooltip behavior are included in the regression suite.
+- Lyrics support viewport alpha fades and per-grapheme brightening/lift using
+  Composition animations. Paused progress, wrapping, line transitions and seek
+  back to the original state pass native XAML render checks. Enhanced LRC uses
+  supplied timing; ordinary LRC timing is estimated within each line.
+- RenderTargetBitmap does not capture the Composition alpha mask. Its live brush
+  connection and viewport dimensions are checked, but its visible gradient and
+  animation frame rate have not been manually measured.
+- `build_installer.py` validates the package manifest before producing a per-user
+  Inno Setup installer. Installation and uninstallation do not target the shared
+  MusicDesk profile or original music files.
+
 ## Checks before replacing the stable release
 
 1. Exercise a live Apple account, first-login 2FA and automatic reconnect, catalog
@@ -96,17 +116,5 @@ preview, not an assertion that every online service or DAC has been tested.
    smoothness at the user's display refresh rate. The available environment does
    not provide native desktop control; no manual or visual FPS result is implied.
 
-The preview ZIP does not update the existing installation or reuse personal test
-media. It is published manually through GitHub Releases; the build scripts do not
-install or publish it. This release does not claim that the remaining checks
-above have passed. Local qa evidence paths are development records, not files
-included in the source repository; public screenshots use generated fixtures.
-
-## preview.2 icon update
-
-The icon-only update redraws 28 vector icons and replaces text-symbol icons in
-buttons, navigation headings, favourites and cover placeholders. Release-package
-UI checks cover 16/24/32 sizes, normal/hover/pressed/disabled states, path bounds,
-foreground inheritance and disabled opacity. The independently extracted package
-contains 4,410 verified files. It retains the earlier UI/lifecycle checks and does
-not change the audio engine, download backend or the real-device limits above.
+The preview does not update the existing installation, reuse personal test media,
+publish a GitHub release or claim that these remaining checks have passed.

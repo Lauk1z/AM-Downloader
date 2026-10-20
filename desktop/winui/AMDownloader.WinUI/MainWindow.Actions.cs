@@ -154,7 +154,7 @@ public sealed partial class MainWindow
     {
         if (playlist is null) return PageFrame("歌单", "", EmptyState());
         var lookup = tracks.ToDictionary(x => x.Path); var items = playlist.Entries.Select(x => lookup.GetValueOrDefault(x.Path) ?? new Track { Path = x.Path, Title = x.Title + " [文件缺失]", Artist = x.Artist, Duration = x.Duration }).ToList();
-        var actions = Ui.Stack(8, Orientation.Horizontal); actions.Children.Add(Ui.Button("播放", () => _ = PlayTracksAsync(items.Where(x => lookup.ContainsKey(x.Path))), icon: "play")); actions.Children.Add(Ui.Icon("\uE712", "歌单操作", () => PlaylistMenu(playlist).ShowAt(pageHost)));
+        var actions = Ui.Stack(8, Orientation.Horizontal); actions.Children.Add(Ui.Button("播放", () => _ = PlayTracksAsync(items.Where(x => lookup.ContainsKey(x.Path))), icon: "play")); actions.Children.Add(Ui.MenuIcon("歌单操作", () => PlaylistMenu(playlist)));
         var content = items.Count > 0 ? (UIElement)TrackTable(items, playlist) : EmptyState("把歌曲拖入此歌单", "可以从歌曲列表拖入，或右键歌曲选择“添加到歌单”。");
         var page = PageFrame(playlist.Name, $"{items.Count} 首歌曲 · 拖放调整顺序", content, actions); page.AllowDrop = true;
         page.DragOver += (_, e) => { if (!e.DataView.Properties.TryGetValue("am-playlist-id", out var origin) || !Equals(origin, playlist.Id)) e.AcceptedOperation = DataPackageOperation.Copy; };

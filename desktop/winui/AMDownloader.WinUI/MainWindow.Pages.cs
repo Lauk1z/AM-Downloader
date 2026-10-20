@@ -121,7 +121,7 @@ public sealed partial class MainWindow
         var stack = Ui.Stack(20); var banner = new Grid { Padding = new(24), Background = Ui.Brush(170, 84, 79, 88), CornerRadius = new(10), ColumnSpacing = 24 };
         banner.ColumnDefinitions.Add(new() { Width = new(165) }); banner.ColumnDefinitions.Add(new() { Width = new(1, GridUnitType.Star) }); banner.Children.Add(Ui.Cover(first.Cover, 165));
         var detail = Ui.Stack(12); detail.Children.Add(Ui.Text("专辑", 13, true, Ui.Muted)); detail.Children.Add(Ui.Text(first.Album, 32, true)); detail.Children.Add(Ui.Text(first.DisplayArtist, 19, color: Ui.Accent)); detail.Children.Add(Ui.Text(first.Quality + (first.Edition.Length > 0 ? " · " + first.Edition : ""), 13, color: Ui.Muted));
-        var actions = Ui.Stack(8, Orientation.Horizontal); actions.Children.Add(Ui.Button("播放", () => _ = PlayTracksAsync(album), true, "play")); actions.Children.Add(Ui.Icon("\uE712", "专辑操作", () => AlbumMenu(album).ShowAt(pageHost))); detail.Children.Add(actions);
+        var actions = Ui.Stack(8, Orientation.Horizontal); actions.Children.Add(Ui.Button("播放", () => _ = PlayTracksAsync(album), true, "play")); actions.Children.Add(Ui.MenuIcon("专辑操作", () => AlbumMenu(album))); detail.Children.Add(actions);
         Grid.SetColumn(detail, 1); banner.Children.Add(detail); Ui.AddMenu(banner, () => AlbumMenu(album)); stack.Children.Add(banner);
         // The list owns scrolling so the surrounding header remains stable when lyrics open.
         var frame = new Grid { Padding = new(32, 24, 32, 24), RowSpacing = 18 }; frame.RowDefinitions.Add(new() { Height = GridLength.Auto }); frame.RowDefinitions.Add(new() { Height = new(1, GridUnitType.Star) }); frame.Children.Add(stack);
@@ -183,9 +183,11 @@ public sealed partial class MainWindow
                 foreach (var track in items)
                 {
                     var row = new Grid { Padding = new(10), Background = Ui.Brush(75, 70, 68, 75), CornerRadius = new(7), ColumnSpacing = 10 };
+                    var normal = row.Background; row.BackgroundTransition = new BrushTransition { Duration = TimeSpan.FromMilliseconds(83) };
+                    row.PointerEntered += (_, _) => row.Background = Ui.Brush(32, 255, 255, 255); row.PointerExited += (_, _) => row.Background = normal;
                     row.ColumnDefinitions.Add(new() { Width = new(24) }); row.ColumnDefinitions.Add(new() { Width = new(1, GridUnitType.Star) }); row.ColumnDefinitions.Add(new() { Width = new(45) }); row.ColumnDefinitions.Add(new() { Width = new(32) });
                     row.Children.Add(Ui.Text(track.Number.ToString())); var text = Ui.Stack(0); text.Children.Add(Ui.Text(track.Title)); text.Children.Add(Ui.Text(track.Artist, 12, color: Ui.Muted)); Grid.SetColumn(text, 1); row.Children.Add(text);
-                    var time = Ui.Text(track.TimeText); Grid.SetColumn(time, 2); row.Children.Add(time); var more = Ui.Icon("\uE712", "歌曲操作", () => TrackMenu([track], items, items.IndexOf(track)).ShowAt(pageHost), 14); Grid.SetColumn(more, 3); row.Children.Add(more);
+                    var time = Ui.Text(track.TimeText); Grid.SetColumn(time, 2); row.Children.Add(time); var more = Ui.MenuIcon("歌曲操作", () => TrackMenu([track], items, items.IndexOf(track)), 14); Grid.SetColumn(more, 3); row.Children.Add(more);
                     row.DoubleTapped += (_, _) => _ = PlayTracksAsync(items, items.IndexOf(track)); Ui.AddMenu(row, () => TrackMenu([track], items, items.IndexOf(track))); right.Children.Add(row);
                 }
                 Ui.AddMenu(section, () => AlbumMenu(items)); Grid.SetColumn(right, 1); section.Children.Add(right); content.Children.Add(section); sections.Add((section, image, right));
@@ -231,6 +233,10 @@ public sealed partial class MainWindow
     {
         var rows = new ObservableCollection<TrackRow>(values.Select((x, i) => new TrackRow(x, i, favourites.Contains(x.Path), playlist?.Entries[i])));
         var list = new ListView { ItemsSource = rows, SelectionMode = ListViewSelectionMode.Extended, CanDragItems = true, CanReorderItems = playlist is not null, AllowDrop = playlist is not null, Background = Ui.Brush(0, 0, 0, 0), HorizontalContentAlignment = HorizontalAlignment.Stretch };
+        list.Resources["ListViewItemCornerRadius"] = new CornerRadius(7);
+        list.ItemContainerStyle = new Style { TargetType = typeof(ListViewItem), BasedOn = (Style)Application.Current.Resources["DefaultListViewItemStyle"], Setters = { new Setter(Control.PaddingProperty, new Thickness(0)), new Setter(FrameworkElement.MarginProperty, new Thickness(16, 0, 12, 0)) } };
+        foreach (var state in new[] { "PointerOver", "Selected", "SelectedPointerOver", "Pressed", "SelectedPressed", "SelectedDisabled" }) list.Resources["ListViewItemBackground" + state] = Ui.Brush(0, 0, 0, 0);
+        list.ContainerContentChanging += TrackRowHighlight.Attach;
         list.ItemTemplate = (DataTemplate)XamlReader.Load("""
             <DataTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
               <Grid Padding="10,12" ColumnSpacing="12" MinHeight="52" CornerRadius="7" Background="{Binding Background}">

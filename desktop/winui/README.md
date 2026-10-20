@@ -9,7 +9,11 @@ CUE／SACD 准备由独立、无 Qt 的 Python 工具进程处理。
 
 ## 运行
 
-完整解压后打开 `AM Downloader WinUI.exe`。需要 Windows 10 2004（19041）或更新的
+可使用 Release 的 `*-Setup.exe` 安装版，或完整解压便携 ZIP 后打开
+`AM Downloader WinUI.exe`。安装版默认安装到当前用户的
+`%LOCALAPPDATA%\Programs\AM Downloader`，支持选择目录、开始菜单快捷方式、
+可选桌面快捷方式及卸载；卸载保留 `%LOCALAPPDATA%\MusicDesk` 中的个人数据。
+升级前请在托盘菜单正常退出正在运行的旧版。需要 Windows 10 2004（19041）或更新的
 x64 系统；包内包含 .NET 和 Windows App SDK 运行时，无需另装 Python 或 .NET SDK。
 首次启动下载后端会将公开的初始镜像解压到个人数据目录，之后复用用户镜像与登录状态。
 
@@ -17,11 +21,9 @@ x64 系统；包内包含 .NET 和 Windows App SDK 运行时，无需另装 Pyth
 播放队列、最后选择的歌曲及同一 Windows 用户的 DPAPI 账户信息。首次写入前会备份
 原偏好文件。使用真实资料库前先退出旧版，避免两个版本同时写入同一个配置文件。
 
-本包是 **2.0.0-preview.2 WinUI 迁移预览版**，通过 GitHub Releases 手动分发；
-解压不会自动覆盖现有程序，构建脚本也不执行安装或发布。保留旧版安装供回退。
+本包是 **WinUI 迁移预览版**，保留旧版安装，不自动覆盖现有程序或发布 GitHub Release。
 原生 DAC／ASIO／DoP 输出和 Apple 在线账户流程仍需要实际设备与账户验收。
 精确验证范围见源码中的 `winui/MIGRATION.md`。
-对外升级说明与下载见 [2.0.0-preview.2 Release](https://github.com/Lauk1z/AM-Downloader/releases/tag/v2.0.0-preview.2)。本次统一重绘 28 组圆润图标，保留原有布局与播放、下载逻辑。
 
 使用独立数据目录试运行：
 
@@ -35,7 +37,7 @@ x64 系统；包内包含 .NET 和 Windows App SDK 运行时，无需另装 Pyth
 - 递归导入文件夹、本地多选导入、标签与封面批量编辑、原文件备份、重复与版本识别。
 - 自定义歌单、拖放与顺序调整、M3U 导入／导出、独立播放队列、本轮不重复的伪随机播放。
 - 自然结束后暂停两秒；手动切歌立即响应。恢复上次歌曲时不自动播放。
-- 加粗歌词、LRC 同时刻翻译合并、原生平滑滚动与点击定位；歌词和队列从右侧展开。
+- 加粗歌词、上下渐隐、逐字高亮与轻微浮起、LRC 同时刻翻译合并、原生平滑滚动与点击定位；歌词和队列从右侧展开。
 - 后端自动启动、下载进度、暂停／重试／移除、可用最高规格确认、日志导出。
 - 登录历史、DPAPI 记住密码、自动登录、错误密码和验证码保持窗口、单实例唤回、托盘与关闭选择。
 
@@ -67,15 +69,6 @@ python winui/build_package.py --output 'winui/artifacts/my-winui-build'
 python winui/tests/check_package.py 'winui/artifacts/my-winui-build.zip' --report-dir 'qa/winui-package-check'
 ```
 
-以上命令在仓库的 `desktop` 目录运行。打包只需 Python 标准库；执行引擎与包验收时，
-另需安装 `pytest`、`Pillow`、`mutagen`、`tomlkit`，并准备固定的 `vendor/backend`。
-核心测试和音频服务并发回归不需要 Qt：
-
-```powershell
-dotnet run --project winui/tests/AudioService.Tests -- qa/audio-service
-python -m pytest winui/tests/test_engine.py -q
-```
-
 打包脚本只接受新的输出路径，不删除旧包。首次会验证并从固定的公开上游产物准备后端。
 也可通过 `--backend` 复用经过校验的精简公开后端，禁止使用个人登录镜像。分发目录包含
 对应源码、许可证、SACD 源码归档及逐文件 SHA-256 清单。
@@ -83,6 +76,18 @@ python -m pytest winui/tests/test_engine.py -q
 `check_package.py` 校验压缩包及逐文件哈希，将其解压到仓库外的临时目录，以包内
 Python 生成静音样本，再运行真正的 Release EXE；它不传入开发资源路径，也不使用
 个人资料库。通过后保留报告与界面截图，并清理此次临时解压目录。
+
+逐字时间优先使用增强 LRC 的 `<mm:ss.xx>` 标记；普通 LRC 只有整句时间时，
+句内进度按时间估算，不能代表精确的演唱对齐。暂停、跳转和换行会同步重置动画。
+
+生成安装版需要 [Inno Setup 7](https://jrsoftware.org/isinfo.php)，先验证便携包，再运行：
+
+```powershell
+python winui/build_installer.py 'winui/artifacts/my-winui-build' --iscc 'C:/Tools/Inno Setup 7/ISCC.exe' --version '2.0.0-preview.3' --output-dir 'winui/artifacts/installers'
+```
+
+安装器逐文件校验输入目录后编译，不自动关闭运行中的播放器，不卸载旧 Qt 版，
+不写入或删除个人资料库、音乐文件和账号信息。安装版与便携版包含同一套运行文件。
 
 在源码目录使用现有组件调试，可通过 `--resources` 指定包含 `musicdesk_worker.py` 和
 `vendor/backend/bundle.json` 的源码根目录。自动界面验收必须同时指定隔离数据目录和

@@ -15,6 +15,7 @@ public sealed partial class MainWindow
 {
     private List<LyricLine> lyricLines = [];
     private readonly List<Button> lyricButtons = [];
+    private readonly List<LyricLineView> lyricViews = [];
     private ScrollViewer? lyricScroll;
     private int activeLyric = -1;
     private DateTime manualLyricsUntil;
@@ -50,21 +51,23 @@ public sealed partial class MainWindow
     }
     private UIElement BuildLyrics()
     {
-        lyricButtons.Clear(); activeLyric = -1;
+        foreach (var view in lyricViews) view.Deactivate();
+        lyricButtons.Clear(); lyricViews.Clear(); activeLyric = -1;
         var stack = Ui.Stack(20); stack.Padding = new(0, 90, 0, 160);
         foreach (var line in lyricLines)
         {
-            var text = Ui.Text(line.Content, 23, true); text.TextWrapping = TextWrapping.Wrap;
-            var button = new Button { Content = text, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left, Padding = new(8, 7, 8, 7), Background = Ui.Brush(0, 0, 0, 0), BorderThickness = new(0), Opacity = .35 };
+            var text = new LyricLineView(line.Content);
+            var button = new Button { Content = text, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch, Padding = new(8, 7, 8, 7), Background = Ui.Brush(0, 0, 0, 0), BorderThickness = new(0) };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, line.Content);
             button.Click += async (_, _) => { if (line.Time is long time) { manualLyricsUntil = DateTime.MinValue; await SeekTrackAsync(time); UpdateLyrics(true); } };
-            stack.Children.Add(button); lyricButtons.Add(button);
+            stack.Children.Add(button); lyricButtons.Add(button); lyricViews.Add(text);
         }
         if (lyricLines.Count == 0) stack.Children.Add(Ui.Text("暂无歌词\n将同名 LRC 文件放在音频旁即可显示。", 18, true, Ui.Muted));
         lyricScroll = Ui.Scroll(stack);
         lyricScroll.AddHandler(UIElement.PointerWheelChangedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler((_, _) => manualLyricsUntil = DateTime.UtcNow.AddSeconds(4)), true);
         lyricScroll.DirectManipulationStarted += (_, _) => manualLyricsUntil = DateTime.UtcNow.AddSeconds(8);
         lyricScroll.Loaded += (_, _) => UpdateLyrics(true);
-        return lyricScroll;
+        return new FadingLyricsViewport(lyricScroll);
     }
     private void UpdateLyrics(bool force = false)
     {
@@ -73,9 +76,15 @@ public sealed partial class MainWindow
         var changed = index != activeLyric;
         if (changed)
         {
-            if (activeLyric >= 0 && activeLyric < lyricButtons.Count) lyricButtons[activeLyric].Opacity = .35;
-            activeLyric = index; if (index >= 0) lyricButtons[index].Opacity = 1;
+            if (activeLyric >= 0 && activeLyric < lyricViews.Count) lyricViews[activeLyric].Deactivate();
+            activeLyric = index;
+            if (index >= 0)
+            {
+                var end = index + 1 < lyricLines.Count ? lyricLines[index + 1].Time ?? Audio.Duration : Audio.Duration;
+                lyricViews[index].Activate(Lyrics.Timing(lyricLines[index], end), end);
+            }
         }
+        if (index >= 0) lyricViews[index].SetClock(Audio.Position, Audio.State == "playing", changed || force);
         if ((changed || force) && index >= 0 && DateTime.UtcNow >= manualLyricsUntil && lyricScroll.ViewportHeight > 0)
         {
             var button = lyricButtons[index]; var point = button.TransformToVisual((UIElement)lyricScroll.Content).TransformPoint(new Point());

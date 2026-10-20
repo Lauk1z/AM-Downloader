@@ -101,6 +101,7 @@ public sealed partial class MainWindow : Window
     }
     private void BuildShell()
     {
+        root.KeyboardAcceleratorPlacementMode = KeyboardAcceleratorPlacementMode.Hidden;
         root.Background = Ui.Brush(255, 32, 32, 34); root.Children.Add(backdrop);
         var shell = new Grid(); shell.ColumnDefinitions.Add(new() { Width = new(224) }); shell.ColumnDefinitions.Add(new() { Width = new(1, GridUnitType.Star) }); root.Children.Add(shell);
         var sidebar = new Grid { Background = Ui.Brush(100, 38, 36, 43), Padding = new(8, 13, 8, 12), RowSpacing = 12 };
