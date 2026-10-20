@@ -16,11 +16,20 @@ internal static class Ui
     public static SolidColorBrush Brush(byte a, byte r, byte g, byte b) => new(Color.FromArgb(a, r, g, b));
     public static TextBlock Text(string text, double size = 14, bool bold = false, Brush? color = null) => new()
     { Text = text, FontSize = size, FontWeight = bold ? Microsoft.UI.Text.FontWeights.Bold : Microsoft.UI.Text.FontWeights.Normal, Foreground = color ?? Brush(255, 238, 238, 242), TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
-    public static Button Button(string text, Action action, bool accent = false)
+    public static Button Button(string text, Action action, bool accent = false, string? icon = null)
     {
         var button = new Button { Content = text, Padding = new(14, 9, 14, 9), CornerRadius = new(6), VerticalAlignment = VerticalAlignment.Center };
         if (accent) { UseAccentResources(button); button.Style = (Style)Application.Current.Resources["AccentButtonStyle"]; }
+        if (icon is not null) SetButtonContent(button, text, icon);
         button.Click += (_, _) => action(); return button;
+    }
+    public static void SetButtonContent(Button button, string text, string icon)
+    {
+        if (button.Content is StackPanel previous && Equals(previous.Tag, (text, icon))) return;
+        var content = Stack(6, Orientation.Horizontal); content.VerticalAlignment = VerticalAlignment.Center; content.Tag = (text, icon);
+        content.Children.Add(Icons.Create(icon, 16, button)); content.Children.Add(new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center });
+        button.Content = content;
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, text);
     }
     public static void UseAccentResources(FrameworkElement scope)
     {
@@ -30,14 +39,13 @@ internal static class Ui
     {
         var button = new Button { Foreground = Muted, Background = new SolidColorBrush(Colors.Transparent), BorderThickness = new(0), Padding = new(6), CornerRadius = new(5), MinHeight = 0, MinWidth = 0 };
         SetGlyph(button, glyph, size);
-        ToolTipService.SetToolTip(button, tip); button.Click += (_, _) => action(); return button;
+        ToolTipService.SetToolTip(button, tip); Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, tip); button.Click += (_, _) => action(); return button;
     }
     public static void SetGlyph(Button button, string glyph, double size)
     {
         if (Equals(button.Tag, glyph)) return;
         button.Tag = glyph;
-        var name = glyph switch { "\uE768" => "play", "\uE769" => "pause", "\uE892" => "previous", "\uE893" => "next", "\uE8B1" => "shuffle", "\uE8EE" => "repeat", "\uE734" => "star", "\uE767" => "volume", "\uE8F2" => "lyrics", "\uE8FD" => "queue", "\uE72C" => "refresh", _ => glyph };
-        button.Content = Icons.Create(name, size, button);
+        button.Content = Icons.Create(glyph, size, button);
     }
     public static Image Image(string source, double size)
     {
@@ -53,7 +61,8 @@ internal static class Ui
     public static Border Cover(string source, double size, double radius = 8)
     {
         var grid = new Grid { Width = size, Height = size, Background = Brush(255, 72, 52, 62) };
-        grid.Children.Add(new FontIcon { Glyph = "\uE8D6", FontSize = size * .35, Foreground = Brush(255, 235, 165, 183) });
+        var note = (FrameworkElement)Icons.Create("songs", size * .35, ink: Brush(255, 235, 165, 183)); note.HorizontalAlignment = HorizontalAlignment.Center; note.VerticalAlignment = VerticalAlignment.Center;
+        grid.Children.Add(note);
         grid.Children.Add(Image(source, size));
         return new Border { CornerRadius = new(radius), Child = grid, Width = size, Height = size };
     }

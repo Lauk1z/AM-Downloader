@@ -28,22 +28,22 @@ public sealed partial class MainWindow
     private Grid EmptyState(string title = "把喜爱的音乐留在这里", string description = "粘贴 Apple Music 链接，或导入已有的音乐文件与文件夹。")
     {
         var center = Ui.Stack(18); center.VerticalAlignment = VerticalAlignment.Center; center.HorizontalAlignment = HorizontalAlignment.Center; center.MaxWidth = 700;
-        var note = Ui.Text("♫", 66, true, Ui.Brush(255, 235, 159, 180)); note.HorizontalAlignment = HorizontalAlignment.Center; center.Children.Add(note);
+        var note = (FrameworkElement)Icons.Create("songs", 66, ink: Ui.Brush(255, 235, 159, 180)); note.HorizontalAlignment = HorizontalAlignment.Center; center.Children.Add(note);
         var text = Ui.Text(title, 25, true); text.HorizontalAlignment = HorizontalAlignment.Center; center.Children.Add(text);
         text = Ui.Text(description, 15, color: Ui.Muted); text.HorizontalAlignment = HorizontalAlignment.Center; text.TextAlignment = TextAlignment.Center; center.Children.Add(text);
-        var button = Ui.Button("＋ 添加音乐", () => _ = AddMusicAsync(), true); button.HorizontalAlignment = HorizontalAlignment.Center; center.Children.Add(button);
+        var button = Ui.Button("添加音乐", () => _ = AddMusicAsync(), true, "add"); button.HorizontalAlignment = HorizontalAlignment.Center; center.Children.Add(button);
         var grid = new Grid(); grid.Children.Add(center); return grid;
     }
     private Grid HomePage()
     {
-        if (tracks.Count == 0) return PageFrame("主页", "你的音乐，从这里开始。", EmptyState(), Ui.Button("＋ 添加音乐", () => _ = AddMusicAsync()));
+        if (tracks.Count == 0) return PageFrame("主页", "你的音乐，从这里开始。", EmptyState(), Ui.Button("添加音乐", () => _ = AddMusicAsync(), icon: "add"));
         var stack = Ui.Stack(28);
         stack.Children.Add(AlbumRail("资料库精选", tracks.GroupBy(x => x.AlbumKey).Select(x => x.First()).Take(12).ToList(), true));
         var lookup = tracks.ToDictionary(x => x.Path); var history = Store.Get("recently_played", new List<string>()).Where(lookup.ContainsKey).Select(x => lookup[x]).ToList();
         stack.Children.Add(AlbumRail(history.Count > 0 ? "最近播放" : "最近添加", (history.Count > 0 ? history.AsEnumerable() : tracks.OrderByDescending(x => x.Modified)).DistinctBy(x => x.AlbumKey).Take(14).ToList(), false));
         stack.Children.Add(Ui.Text("你的音乐资料库", 23, true)); stack.Children.Add(Ui.Text(Counts(tracks), 15, color: Ui.Muted));
         var scroll = Ui.Scroll(new Border { Padding = new(32, 0, 32, 24), Child = stack }); scroll.Name = "HomeScroll";
-        return PageFrame("主页", "", scroll, Ui.Button("＋ 添加音乐", () => _ = AddMusicAsync()), edgeScroll: true);
+        return PageFrame("主页", "", scroll, Ui.Button("添加音乐", () => _ = AddMusicAsync(), icon: "add"), edgeScroll: true);
     }
     private StackPanel AlbumRail(string title, List<Track> albums, bool featured)
     {
@@ -104,7 +104,7 @@ public sealed partial class MainWindow
     {
         var visible = Filter(tracks); var grid = new GridView { Name = "AlbumsGrid", Padding = new(32, 0, 32, 24), SelectionMode = ListViewSelectionMode.None, IsItemClickEnabled = false, Background = Ui.Brush(0, 0, 0, 0) };
         foreach (var album in visible.GroupBy(x => x.AlbumKey)) grid.Items.Add(AlbumCard(album.First(), 200));
-        return PageFrame("专辑", Counts(visible), visible.Count == 0 ? EmptyState(tracks.Count > 0 ? "还没有匹配的音乐" : "把喜爱的音乐留在这里") : grid, Ui.Button("▶ 播放全部", () => _ = PlayTracksAsync(visible)), FilterBar(), edgeScroll: visible.Count > 0);
+        return PageFrame("专辑", Counts(visible), visible.Count == 0 ? EmptyState(tracks.Count > 0 ? "还没有匹配的音乐" : "把喜爱的音乐留在这里") : grid, Ui.Button("播放全部", () => _ = PlayTracksAsync(visible), icon: "play"), FilterBar(), edgeScroll: visible.Count > 0);
     }
     private Grid SongsPage()
     {
@@ -112,7 +112,7 @@ public sealed partial class MainWindow
         if (page == "recent") source = source.OrderByDescending(x => x.Modified).ToList();
         var title = page switch { "recent" => "最近添加", "favourites" => "喜爱的歌曲", _ => "歌曲" };
         var visible = Filter(source);
-        return PageFrame(title, source.Count == 0 ? "音乐会在这里，慢慢成为你的收藏。" : Counts(visible), visible.Count == 0 ? EmptyState(source.Count > 0 ? "还没有匹配的音乐" : "把喜爱的音乐留在这里") : TrackTable(visible), Ui.Button("▶ 播放全部", () => _ = PlayTracksAsync(visible)), FilterBar());
+        return PageFrame(title, source.Count == 0 ? "音乐会在这里，慢慢成为你的收藏。" : Counts(visible), visible.Count == 0 ? EmptyState(source.Count > 0 ? "还没有匹配的音乐" : "把喜爱的音乐留在这里") : TrackTable(visible), Ui.Button("播放全部", () => _ = PlayTracksAsync(visible), icon: "play"), FilterBar());
     }
     private Grid AlbumPage(List<Track> album)
     {
@@ -121,7 +121,7 @@ public sealed partial class MainWindow
         var stack = Ui.Stack(20); var banner = new Grid { Padding = new(24), Background = Ui.Brush(170, 84, 79, 88), CornerRadius = new(10), ColumnSpacing = 24 };
         banner.ColumnDefinitions.Add(new() { Width = new(165) }); banner.ColumnDefinitions.Add(new() { Width = new(1, GridUnitType.Star) }); banner.Children.Add(Ui.Cover(first.Cover, 165));
         var detail = Ui.Stack(12); detail.Children.Add(Ui.Text("专辑", 13, true, Ui.Muted)); detail.Children.Add(Ui.Text(first.Album, 32, true)); detail.Children.Add(Ui.Text(first.DisplayArtist, 19, color: Ui.Accent)); detail.Children.Add(Ui.Text(first.Quality + (first.Edition.Length > 0 ? " · " + first.Edition : ""), 13, color: Ui.Muted));
-        var actions = Ui.Stack(8, Orientation.Horizontal); actions.Children.Add(Ui.Button("▶ 播放", () => _ = PlayTracksAsync(album), true)); actions.Children.Add(Ui.Icon("\uE712", "专辑操作", () => AlbumMenu(album).ShowAt(pageHost))); detail.Children.Add(actions);
+        var actions = Ui.Stack(8, Orientation.Horizontal); actions.Children.Add(Ui.Button("播放", () => _ = PlayTracksAsync(album), true, "play")); actions.Children.Add(Ui.Icon("\uE712", "专辑操作", () => AlbumMenu(album).ShowAt(pageHost))); detail.Children.Add(actions);
         Grid.SetColumn(detail, 1); banner.Children.Add(detail); Ui.AddMenu(banner, () => AlbumMenu(album)); stack.Children.Add(banner);
         // The list owns scrolling so the surrounding header remains stable when lyrics open.
         var frame = new Grid { Padding = new(32, 24, 32, 24), RowSpacing = 18 }; frame.RowDefinitions.Add(new() { Height = GridLength.Auto }); frame.RowDefinitions.Add(new() { Height = new(1, GridUnitType.Star) }); frame.Children.Add(stack);
@@ -196,7 +196,7 @@ public sealed partial class MainWindow
         artists.SelectionChanged += (_, _) => { if (artists.SelectedItem is ListViewItem item) { if (selectedArtist != (string)item.Tag) artistDetailOffset = 0; selectedArtist = (string)item.Tag; Select(); } };
         artists.SelectedIndex = groups.FindIndex(x => x.Key == selectedArtist);
         split.SizeChanged += (_, _) => Resize();
-        return PageFrame("艺人", Counts(visible), split, Ui.Button("▶ 播放全部", () => _ = PlayTracksAsync(visible)), FilterBar());
+        return PageFrame("艺人", Counts(visible), split, Ui.Button("播放全部", () => _ = PlayTracksAsync(visible), icon: "play"), FilterBar());
     }
     private List<Track> Filter(IEnumerable<Track> source)
     {
@@ -236,6 +236,9 @@ public sealed partial class MainWindow
               <Grid Padding="10,12" ColumnSpacing="12" MinHeight="52" CornerRadius="7" Background="{Binding Background}">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="30"/><ColumnDefinition Width="4*"/><ColumnDefinition Width="1.1*"/><ColumnDefinition Width="1.4*"/><ColumnDefinition Width="1.4*"/><ColumnDefinition Width="45"/></Grid.ColumnDefinitions>
                 <TextBlock Text="{Binding IndexText}" VerticalAlignment="Center" Foreground="{Binding MarkerBrush}"/>
+                <Viewbox Width="14" Height="14" HorizontalAlignment="Left" VerticalAlignment="Center" Visibility="{Binding FavouriteVisibility}">
+                  <Canvas Width="24" Height="24"><Path Data="{Binding FavouriteData}" Fill="{Binding MarkerBrush}"/></Canvas>
+                </Viewbox>
                 <TextBlock Grid.Column="1" Text="{Binding Track.Title}" TextWrapping="Wrap" MaxLines="2" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="2" Text="{Binding Track.Artist}" TextWrapping="Wrap" MaxLines="2" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="3" Text="{Binding Track.Album}" TextWrapping="Wrap" MaxLines="2" VerticalAlignment="Center"/>
@@ -276,7 +279,7 @@ public sealed partial class MainWindow
         foreach (var item in catalog)
         {
             var row = Ui.Stack(10, Orientation.Horizontal); row.Children.Add(Ui.Image(J.S(item, "artworkUrl100"), 42)); row.Children.Add(Ui.Text(J.S(item, "trackName") + " · " + J.S(item, "artistName")));
-            row.Children.Add(Ui.Button("＋ 下载", () => _ = AddDownloadAsync(J.S(item, "trackViewUrl"), Store.Get("codec", "alac")))); remote.Children.Add(row);
+            row.Children.Add(Ui.Button("下载", () => _ = AddDownloadAsync(J.S(item, "trackViewUrl"), Store.Get("codec", "alac")), icon: "add")); remote.Children.Add(row);
         }
         var scroll = Ui.Scroll(remote); Grid.SetRow(scroll, 1); grid.Children.Add(scroll); return PageFrame("搜索", $"“{term}” · 资料库 {local.Count} 首歌曲", grid);
     }
@@ -286,7 +289,9 @@ public sealed class TrackRow(Track track, int index, bool favourite, PlaylistEnt
     public Track Track { get; } = track;
     public PlaylistEntry? Entry { get; } = entry;
     public int OriginalIndex { get; } = index;
-    public string IndexText => favourite ? "★" : (OriginalIndex + 1).ToString();
+    public string IndexText => favourite ? "" : (OriginalIndex + 1).ToString();
+    public string FavouriteData => Icons.StarData;
+    public Visibility FavouriteVisibility => favourite ? Visibility.Visible : Visibility.Collapsed;
     public Brush MarkerBrush => favourite ? Ui.Accent : Ui.Brush(255, 205, 205, 211);
     public Brush Background => OriginalIndex % 2 == 0 ? Ui.Brush(65, 65, 63, 70) : Ui.Brush(0, 0, 0, 0);
 }

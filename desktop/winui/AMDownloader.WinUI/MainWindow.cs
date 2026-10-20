@@ -113,7 +113,7 @@ public sealed partial class MainWindow : Window
         var navScroll = Ui.Scroll(navSurface); Grid.SetRow(navScroll, 2); sidebar.Children.Add(navScroll);
         notice.Margin = backendStatus.Margin = new(12, 0, 4, 0); Grid.SetRow(notice, 3); Grid.SetRow(backendStatus, 4); sidebar.Children.Add(notice); sidebar.Children.Add(backendStatus);
         var footer = new Grid(); footer.ColumnDefinitions.Add(new() { Width = new(1, GridUnitType.Star) }); footer.ColumnDefinitions.Add(new() { Width = GridLength.Auto });
-        footer.Children.Add(Ui.Button("⚙  设置", () => Navigate("settings"))); var add = Ui.Icon("\uE710", "添加音乐 · Ctrl+L", () => _ = AddMusicAsync(), 16); Grid.SetColumn(add, 1); footer.Children.Add(add); Grid.SetRow(footer, 5); sidebar.Children.Add(footer); shell.Children.Add(sidebar);
+        footer.Children.Add(Ui.Button("设置", () => Navigate("settings"), icon: "settings")); var add = Ui.Icon("\uE710", "添加音乐 · Ctrl+L", () => _ = AddMusicAsync(), 16); Grid.SetColumn(add, 1); footer.Children.Add(add); Grid.SetRow(footer, 5); sidebar.Children.Add(footer); shell.Children.Add(sidebar);
         var main = new Grid(); main.RowDefinitions.Add(new() { Height = new(64) }); main.RowDefinitions.Add(new() { Height = new(1, GridUnitType.Star) }); Grid.SetColumn(main, 1); shell.Children.Add(main);
         main.Children.Add(BuildPlayer()); body.Content = pageHost; Grid.SetRow(body, 1); main.Children.Add(body);
         Content = root; BuildNavigation();
@@ -189,17 +189,22 @@ public sealed partial class MainWindow : Window
             var symbol = key switch { "home" => "home", "recent" => "recent", "artists" => "artist", "albums" => "album", "songs" => "songs", "favourites" => "favourites", "queue" => "download", _ => "playlist" };
             UIElement graphic = key.StartsWith("album:") && tracks.FirstOrDefault(x => x.AlbumKey == key[6..]) is { } album ? Ui.Cover(album.Cover, 20, 2) : Icons.Create(symbol, 19);
             Grid.SetColumn((FrameworkElement)graphic, 1); row.Children.Add(graphic);
-            var name = Ui.Text(title.Contains("   ") ? title[(title.IndexOf("   ", StringComparison.Ordinal) + 3)..] : title, 14); name.TextTrimming = TextTrimming.CharacterEllipsis; name.TextWrapping = TextWrapping.NoWrap; Grid.SetColumn(name, 2); row.Children.Add(name); button.Content = row;
+            var name = Ui.Text(title, 14); name.TextTrimming = TextTrimming.CharacterEllipsis; name.TextWrapping = TextWrapping.NoWrap; Grid.SetColumn(name, 2); row.Children.Add(name); button.Content = row;
             navigation.Children.Add(button); navButtons[key] = button;
         }
-        Nav("home", "⌂   主页"); navigation.Children.Add(Ui.Text("▤   资料库", 13, true, Ui.Muted));
-        Nav("recent", "◷   最近添加", true); Nav("artists", "♩   艺人", true); Nav("albums", "▢   专辑", true); Nav("songs", "♫   歌曲", true);
-        var heading = new Grid { Margin = new(12, 12, 4, 0) }; heading.Children.Add(Ui.Text("☷   播放列表", 13, true, Ui.Muted));
+        StackPanel Heading(string title, string icon)
+        {
+            var label = Ui.Stack(8, Orientation.Horizontal); label.Height = 18;
+            label.Children.Add(Icons.Create(icon, 17)); label.Children.Add(Ui.Text(title, 13, true, Ui.Muted)); return label;
+        }
+        Nav("home", "主页"); navigation.Children.Add(Heading("资料库", "library"));
+        Nav("recent", "最近添加", true); Nav("artists", "艺人", true); Nav("albums", "专辑", true); Nav("songs", "歌曲", true);
+        var heading = new Grid { Margin = new(12, 12, 4, 0) }; heading.Children.Add(Heading("播放列表", "playlist"));
         var plus = Ui.Icon("\uE710", "新建或导入歌单", PlaylistCreationMenu, 14); plus.HorizontalAlignment = HorizontalAlignment.Right; heading.Children.Add(plus); navigation.Children.Add(heading);
-        Nav("favourites", "☆   喜爱的歌曲", true); Nav("queue", "↓   下载队列", true);
+        Nav("favourites", "喜爱的歌曲", true); Nav("queue", "下载队列", true);
         foreach (var list in playlists)
         {
-            Nav(list.Id, "☷   " + list.Name, true); var button = navButtons[list.Id]; button.AllowDrop = true;
+            Nav(list.Id, list.Name, true); var button = navButtons[list.Id]; button.AllowDrop = true;
             button.DragOver += (_, e) => e.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy;
             button.Drop += async (_, e) => { e.Handled = true; await DropIntoPlaylistAsync(list, e.DataView); };
             Ui.AddMenu(button, () => PlaylistMenu(list));

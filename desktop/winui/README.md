@@ -17,11 +17,11 @@ x64 系统；包内包含 .NET 和 Windows App SDK 运行时，无需另装 Pyth
 播放队列、最后选择的歌曲及同一 Windows 用户的 DPAPI 账户信息。首次写入前会备份
 原偏好文件。使用真实资料库前先退出旧版，避免两个版本同时写入同一个配置文件。
 
-本包是 **2.0.0-preview.1 WinUI 迁移预览版**，通过 GitHub Releases 手动分发；
+本包是 **2.0.0-preview.2 WinUI 迁移预览版**，通过 GitHub Releases 手动分发；
 解压不会自动覆盖现有程序，构建脚本也不执行安装或发布。保留旧版安装供回退。
 原生 DAC／ASIO／DoP 输出和 Apple 在线账户流程仍需要实际设备与账户验收。
 精确验证范围见源码中的 `winui/MIGRATION.md`。
-对外升级说明与下载见 [2.0.0-preview.1 Release](https://github.com/Lauk1z/AM-Downloader/releases/tag/v2.0.0-preview.1)。
+对外升级说明与下载见 [2.0.0-preview.2 Release](https://github.com/Lauk1z/AM-Downloader/releases/tag/v2.0.0-preview.2)。本次统一重绘 28 组圆润图标，保留原有布局与播放、下载逻辑。
 
 使用独立数据目录试运行：
 

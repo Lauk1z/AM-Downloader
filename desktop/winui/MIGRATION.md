@@ -97,7 +97,16 @@ preview, not an assertion that every online service or DAC has been tested.
    not provide native desktop control; no manual or visual FPS result is implied.
 
 The preview ZIP does not update the existing installation or reuse personal test
-media. It is published manually as v2.0.0-preview.1; the build scripts do not
+media. It is published manually through GitHub Releases; the build scripts do not
 install or publish it. This release does not claim that the remaining checks
 above have passed. Local qa evidence paths are development records, not files
 included in the source repository; public screenshots use generated fixtures.
+
+## preview.2 icon update
+
+The icon-only update redraws 28 vector icons and replaces text-symbol icons in
+buttons, navigation headings, favourites and cover placeholders. Release-package
+UI checks cover 16/24/32 sizes, normal/hover/pressed/disabled states, path bounds,
+foreground inheritance and disabled opacity. The independently extracted package
+contains 4,410 verified files. It retains the earlier UI/lifecycle checks and does
+not change the audio engine, download backend or the real-device limits above.

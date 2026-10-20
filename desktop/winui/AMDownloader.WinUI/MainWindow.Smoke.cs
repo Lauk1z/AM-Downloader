@@ -28,6 +28,7 @@ public sealed partial class MainWindow
             Check(theme.MergedDictionaries.OfType<XamlControlsResources>().Any() && theme.TryGetValue("AccentFillColorDefaultBrush", out var accent) && accent is SolidColorBrush brush && brush.Color == Windows.UI.Color.FromArgb(255, 255, 53, 101), "应用 XAML 主题资源未加载");
             checks.Add(new { runtime, xaml, resources = Paths.Resources, audioHost = Paths.AudioHost, python = Paths.Python, applicationTheme = true });
             checks.Add(await VerifyThemeUiAsync(folder));
+            checks.Add(await VerifyIconsUiAsync(folder));
             checks.Add(await VerifyPageUiAsync(folder));
             checks.Add(await VerifyAudioSettingsUiAsync());
             var initialQueue = queue.Select(x => x.Path).ToList(); var initialTrack = Audio.Current?.Path;

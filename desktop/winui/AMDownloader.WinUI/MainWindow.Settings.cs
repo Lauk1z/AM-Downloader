@@ -103,7 +103,7 @@ public sealed partial class MainWindow
     private Grid DownloadPage()
     {
         downloadRows.Clear(); var actions = Ui.Stack(12, Orientation.Horizontal);
-        pauseDownloads = Ui.Button(queuePaused ? "▶ 继续队列" : "Ⅱ 暂停队列", () => _ = Guard(async () => { queuePaused = !queuePaused; UpdateDownloadView(); await NextJobAsync(); })); actions.Children.Add(pauseDownloads);
+        pauseDownloads = Ui.Button(queuePaused ? "继续队列" : "暂停队列", () => _ = Guard(async () => { queuePaused = !queuePaused; UpdateDownloadView(); await NextJobAsync(); }), icon: queuePaused ? "play" : "pause"); actions.Children.Add(pauseDownloads);
         actions.Children.Add(Ui.Button("重试失败", () => _ = Guard(async () => { foreach (var job in jobs.Where(x => x.State is "FAILED" or "cancelled")) job.State = "queued"; queuePaused = false; Store.Set("jobs", jobs); UpdateDownloadView(); await NextJobAsync(); })));
         actions.Children.Add(Ui.Button("清理已完成", () => { jobs.RemoveAll(x => x.State == "DONE"); Store.Set("jobs", jobs); RenderPage(); }));
         var stack = new Grid { RowSpacing = 16 }; foreach (var height in new[] { GridLength.Auto, new(1, GridUnitType.Star), GridLength.Auto, new(150) }) stack.RowDefinitions.Add(new() { Height = height });
@@ -119,7 +119,7 @@ public sealed partial class MainWindow
             Ui.AddMenu(row, () => { var menu = new MenuFlyout(); menu.Items.Add(Ui.MenuItem("从队列删除", () => _ = JobActionAsync(job, true))); return menu; }); ToolTipService.SetToolTip(row, job.Error.Length > 0 ? job.Error : job.Url); list.Children.Add(row); downloadRows[job.Id] = (title, quality, state, progress, action);
         }
         var border = new Border { Child = Ui.Scroll(list), CornerRadius = new(10), Background = Ui.Brush(55, 13, 13, 15) }; Grid.SetRow(border, 1); stack.Children.Add(border);
-        var status = new Grid(); downloadSpeeds = Ui.Text(speeds, 13, color: Ui.Muted); status.Children.Add(downloadSpeeds); var export = Ui.Button("↓ 导出诊断日志", () => _ = Guard(async () => { var picker = InitPicker(new FileSavePicker { SuggestedFileName = "wrapper-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") }); picker.FileTypeChoices.Add("文本日志", new List<string> { ".txt" }); var file = await picker.PickSaveFileAsync(); if (file is not null) await SendAsync(new { action = "export", path = file.Path }); })); export.HorizontalAlignment = HorizontalAlignment.Right; status.Children.Add(export); Grid.SetRow(status, 2); stack.Children.Add(status);
+        var status = new Grid(); downloadSpeeds = Ui.Text(speeds, 13, color: Ui.Muted); status.Children.Add(downloadSpeeds); var export = Ui.Button("导出诊断日志", () => _ = Guard(async () => { var picker = InitPicker(new FileSavePicker { SuggestedFileName = "wrapper-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") }); picker.FileTypeChoices.Add("文本日志", new List<string> { ".txt" }); var file = await picker.PickSaveFileAsync(); if (file is not null) await SendAsync(new { action = "export", path = file.Path }); }), icon: "download"); export.HorizontalAlignment = HorizontalAlignment.Right; status.Children.Add(export); Grid.SetRow(status, 2); stack.Children.Add(status);
         downloadLog = new TextBox { Text = logs, IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, FontFamily = new("Consolas"), FontSize = 12, CornerRadius = new(7) }; ScrollViewer.SetVerticalScrollBarVisibility(downloadLog, ScrollBarVisibility.Auto); Grid.SetRow(downloadLog, 3); stack.Children.Add(downloadLog); UpdateDownloadView();
         return PageFrame("下载队列", "", stack, actions);
     }
@@ -129,7 +129,7 @@ public sealed partial class MainWindow
     {
         if (page != "queue") return; if (structure) { RenderPage(); return; }
         if (downloadSummary is not null) downloadSummary.Text = $"{jobs.Count} 个任务 · {jobs.Count(x => x.State == "DONE")} 个已完成" + (queuePaused ? " · 队列已暂停，当前任务会继续完成" : "");
-        if (pauseDownloads is not null) pauseDownloads.Content = queuePaused ? "▶ 继续队列" : "Ⅱ 暂停队列";
+        if (pauseDownloads is not null) Ui.SetButtonContent(pauseDownloads, queuePaused ? "继续队列" : "暂停队列", queuePaused ? "play" : "pause");
         foreach (var job in jobs) if (downloadRows.TryGetValue(job.Id, out var row)) { row.Title.Text = job.Caption; row.Quality.Text = job.QualityText; row.State.Text = job.StateText; row.Progress.Text = job.ProgressText; row.Action.Content = job.State is "FAILED" or "cancelled" ? "重试" : "取消"; row.Action.IsEnabled = job.State != "DONE"; }
         if (downloadSpeeds is not null) downloadSpeeds.Text = speeds;
         if (downloadLog is not null && downloadLog.Text != logs) { downloadLog.Text = logs; downloadLog.SelectionStart = logs.Length; }
