@@ -1,8 +1,9 @@
 using System.Runtime.InteropServices;
+using AMDownloader.WinUI.Views;
 
 namespace AMDownloader.WinUI.Services;
 
-internal sealed class TrayIcon : IDisposable
+internal sealed partial class TrayIcon : IDisposable
 {
     private const uint Callback = 0x8000 + 42;
     private readonly nint window, icon;
@@ -11,6 +12,7 @@ internal sealed class TrayIcon : IDisposable
     private readonly uint taskbarCreated = RegisterWindowMessage("TaskbarCreated");
     private NotifyData data;
     private bool playing, canPlay, canSkip;
+    private TrayMenuWindow? menu;
     public bool Available { get; private set; }
     public TrayIcon(nint window, string path, Action<string> action)
     {
@@ -33,23 +35,20 @@ internal sealed class TrayIcon : IDisposable
         }
         if (message == Callback)
         {
-            if ((uint)lParam is 0x202 or 0x203) action("show");
-            else if ((uint)lParam == 0x205)
-            {
-                var menu = CreatePopupMenu();
-                AppendMenu(menu, 0, 1, "显示主窗口"); AppendMenu(menu, 1, 10, data.Tip);
-                AppendMenu(menu, canPlay ? 0u : 1u, 2, playing ? "暂停" : "播放"); AppendMenu(menu, canSkip ? 0u : 1u, 3, "上一首"); AppendMenu(menu, canSkip ? 0u : 1u, 4, "下一首");
-                AppendMenu(menu, 0x800, 0, ""); AppendMenu(menu, 0, 6, "正在播放队列"); AppendMenu(menu, 0, 7, "音频输出链路"); AppendMenu(menu, 0, 8, "最小化到托盘");
-                AppendMenu(menu, 0x800, 0, ""); AppendMenu(menu, 0, 5, "退出");
-                GetCursorPos(out var point); SetForegroundWindow(window);
-                var choice = TrackPopupMenu(menu, 0x100 | 2, point.X, point.Y, 0, window, 0); DestroyMenu(menu);
-                if (choice > 0) action(choice switch { 1 => "show", 2 => "play", 3 => "previous", 4 => "next", 6 => "queue", 7 => "output", 8 => "tray", _ => "quit" });
-            }
+            if ((uint)lParam is 0x202 or 0x203) { menu?.Close(); action("show"); }
+            else if ((uint)lParam == 0x205) OpenMenu();
             return 0;
         }
         return DefSubclassProc(hwnd, message, wParam, lParam);
     }
-    public void Dispose() { ShellNotifyIcon(2, ref data); RemoveWindowSubclass(window, callback, 42); if (icon != 0) DestroyIcon(icon); }
+    private void OpenMenu()
+    {
+        menu?.Close();
+        var opened = new TrayMenuWindow(data.Tip, playing, canPlay, canSkip, action); menu = opened;
+        opened.Closed += (_, _) => { if (menu == opened) menu = null; };
+        GetCursorPos(out var point); opened.ShowAt(new(point.X, point.Y));
+    }
+    public void Dispose() { menu?.Close(); ShellNotifyIcon(2, ref data); RemoveWindowSubclass(window, callback, 42); if (icon != 0) DestroyIcon(icon); }
     private delegate nint SubclassProc(nint hwnd, uint message, nuint wParam, nint lParam, nuint id, nuint reference);
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)] private struct NotifyData
     { public uint Size; public nint Window; public uint Id, Flags, CallbackMessage; public nint Icon; [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)] public string Tip; public uint State, StateMask; [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)] public string Info; public uint Version; [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 64)] public string InfoTitle; public uint InfoFlags; public Guid Guid; public nint BalloonIcon; }
@@ -66,9 +65,5 @@ internal sealed class TrayIcon : IDisposable
     [DllImport("user32.dll")] private static extern bool IsIconic(nint window);
     [DllImport("user32.dll", EntryPoint = "RegisterWindowMessageW", CharSet = CharSet.Unicode)] private static extern uint RegisterWindowMessage(string name);
     [DllImport("user32.dll")] private static extern bool SetForegroundWindow(nint window);
-    [DllImport("user32.dll")] private static extern nint CreatePopupMenu();
-    [DllImport("user32.dll", EntryPoint = "AppendMenuW", CharSet = CharSet.Unicode)] private static extern bool AppendMenu(nint menu, uint flags, nuint id, string text);
-    [DllImport("user32.dll")] private static extern uint TrackPopupMenu(nint menu, uint flags, int x, int y, int reserved, nint window, nint rect);
-    [DllImport("user32.dll")] private static extern bool DestroyMenu(nint menu);
     [DllImport("user32.dll")] private static extern bool GetCursorPos(out Point point);
 }

@@ -24,11 +24,13 @@ internal sealed class LyricLineView : Grid
     private IReadOnlyList<LyricGlyph>? timing;
     private long position, end;
     private bool playing;
+    private string mode;
     internal List<Rect> GlyphBounds { get; } = [];
     internal bool IsActive => timing is not null;
 
-    public LyricLineView(string content)
+    public LyricLineView(string content, string mode)
     {
+        this.mode = mode;
         text = Ui.Text("", 23, true); text.VerticalAlignment = VerticalAlignment.Top;
         run = new Run { Text = content }; text.Inlines.Add(run);
         source.Children.Add(text); Children.Add(source); Children.Add(ink);
@@ -42,6 +44,14 @@ internal sealed class LyricLineView : Grid
     { timing = glyphs; end = lineEnd; Rebuild(); }
     public void Deactivate()
     { timing = null; clock.StopAnimation("Position"); ClearInk(); source.Opacity = .35; }
+    public void SetMode(string value)
+    {
+        if (mode == value) return;
+        var rebuild = mode == "line" || value == "line";
+        mode = value;
+        if (!IsActive) return;
+        if (rebuild) Rebuild(); else SetClock(position + (playing ? elapsed.ElapsedMilliseconds : 0), playing, true);
+    }
     private void ClearInk()
     {
         foreach (var (piece, _, opacity, lift) in pieces) { piece.StopAnimation(opacity); piece.StopAnimation(lift); }
@@ -51,6 +61,8 @@ internal sealed class LyricLineView : Grid
     {
         if (timing is null || text.ActualWidth <= 0 || text.ActualHeight <= 0) return;
         ClearInk();
+        if (mode == "line")
+        { source.Opacity = 1; SetClock(position + (playing ? elapsed.ElapsedMilliseconds : 0), playing, true); return; }
         foreach (var glyph in timing)
         {
             var pointer = run.ContentStart.GetPositionAtOffset(glyph.Index, LogicalDirection.Forward);
@@ -67,7 +79,7 @@ internal sealed class LyricLineView : Grid
             piece.Children.Add(glyphText); ink.Children.Add(piece);
             var amount = "Clamp((clock.Position - start) / span, 0, 1)";
             var opacity = clock.Compositor.CreateExpressionAnimation("0.35 + 0.65 * " + amount); opacity.Target = "Opacity";
-            var lift = clock.Compositor.CreateExpressionAnimation("Vector3(0, -3 * " + amount + ", 0)"); lift.Target = "Translation";
+            var lift = clock.Compositor.CreateExpressionAnimation("Vector3(0, rise * " + amount + ", 0)"); lift.Target = "Translation";
             foreach (var animation in new[] { opacity, lift })
             {
                 animation.SetReferenceParameter("clock", clock); animation.SetScalarParameter("start", glyph.Start); animation.SetScalarParameter("span", Math.Max(1, glyph.End - glyph.Start));
@@ -83,12 +95,14 @@ internal sealed class LyricLineView : Grid
         if (!force && running == playing && (running ? Math.Abs(value - predicted) < 160 : value == position)) return;
         position = value; playing = running; elapsed.Restart();
         clock.StopAnimation("Position"); clock.InsertScalar("Position", value);
+        if (mode == "line") return;
         foreach (var (piece, glyph, opacity, lift) in pieces)
         {
             piece.StopAnimation(opacity); piece.StopAnimation(lift);
             var progress = Math.Clamp((value - glyph.Start) / (double)Math.Max(1, glyph.End - glyph.Start), 0, 1);
-            piece.Opacity = .35 + .65 * progress; piece.Translation = new(0, (float)(-3 * progress), 0);
-            if (running) { piece.StartAnimation(opacity); piece.StartAnimation(lift); }
+            lift.SetScalarParameter("rise", mode == "floating" ? -3 : 0);
+            piece.Opacity = .35 + .65 * progress; piece.Translation = new(0, (float)((mode == "floating" ? -3 : 0) * progress), 0);
+            if (running) { piece.StartAnimation(opacity); if (mode == "floating") piece.StartAnimation(lift); }
         }
         if (!running || value >= end) return;
         var motion = clock.Compositor.CreateScalarKeyFrameAnimation();

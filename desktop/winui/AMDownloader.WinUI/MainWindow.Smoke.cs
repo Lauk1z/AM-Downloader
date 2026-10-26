@@ -31,6 +31,7 @@ public sealed partial class MainWindow
             checks.Add(await VerifyIconsUiAsync(folder));
             checks.Add(await VerifyPageUiAsync(folder));
             checks.Add(await VerifyLyricsUiAsync(folder));
+            checks.Add(await tray!.VerifyMenuAsync(folder));
             checks.Add(await VerifyInteractionUiAsync(folder));
             checks.Add(await VerifyAudioSettingsUiAsync());
             var initialQueue = queue.Select(x => x.Path).ToList(); var initialTrack = Audio.Current?.Path;

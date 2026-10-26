@@ -36,6 +36,10 @@ public sealed partial class MainWindow
         actions.Children.Add(Ui.Button("登录 Apple 账号", () => _ = LoginAsync())); actions.Children.Add(Ui.Button("重新连接后端", () => _ = Guard(async () => { if (backend is not null) { await BackendEventAsync(JsonSerializer.SerializeToElement(new { @event = "disconnected", message = "正在重新连接下载后端。" })); await backend.RestartAsync(); } }))); stack.Children.Add(actions);
         stack.Children.Add(Ui.Text("修改设置会保留原配置中的其他内容，并自动创建备份。", 12, color: Ui.Muted));
         var close = Ui.Combo(new[] { ("每次询问", (object)"ask"), ("最小化到托盘", "tray"), ("关闭程序", "exit") }, Store.Get("close_action", "ask")); close.SelectionChanged += (_, _) => Store.Set("close_action", Ui.Selected<string>(close)); Row("关闭主窗口时", close);
+        var lyrics = Ui.Combo(new[] { ("浮动（逐字高亮并浮起）", (object)"floating"), ("逐字高亮（不浮动）", "word"), ("普通（整句高亮）", "line") }, LyricsMode); lyrics.Name = "LyricsMode";
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(lyrics, "歌词显示模式");
+        lyrics.SelectionChanged += (_, _) => { var mode = Ui.Selected<string>(lyrics); Store.Set("lyrics_mode", mode); foreach (var view in lyricViews) view.SetMode(mode); };
+        Row("歌词显示模式", lyrics);
         stack.Children.Add(Ui.Text("音频输出", 23, true));
         var mode = Ui.Combo(new[] { ("系统共享（兼容模式）", (object)"shared"), ("WASAPI 独占", "wasapi"), ("ASIO（支持原生 DSD）", "asio") }, Audio.Config.Mode);
         var devices = new SafeComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, PlaceholderText = "请选择 DAC 对应的输出设备" }; var dsd = new SafeComboBox { HorizontalAlignment = HorizontalAlignment.Stretch }; var note = Ui.Text("正在读取输出设备…", 12, color: Ui.Muted);

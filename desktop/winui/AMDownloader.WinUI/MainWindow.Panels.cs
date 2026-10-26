@@ -19,6 +19,7 @@ public sealed partial class MainWindow
     private ScrollViewer? lyricScroll;
     private int activeLyric = -1;
     private DateTime manualLyricsUntil;
+    private string LyricsMode => Store.Get("lyrics_mode", Store.Get("lyrics_floating", true) ? "floating" : "word");
     private void TogglePanel(string panel)
     {
         openPanel = body.IsPaneOpen && openPanel == panel ? "" : panel;
@@ -54,9 +55,10 @@ public sealed partial class MainWindow
         foreach (var view in lyricViews) view.Deactivate();
         lyricButtons.Clear(); lyricViews.Clear(); activeLyric = -1;
         var stack = Ui.Stack(20); stack.Padding = new(0, 90, 0, 160);
+        var mode = LyricsMode;
         foreach (var line in lyricLines)
         {
-            var text = new LyricLineView(line.Content);
+            var text = new LyricLineView(line.Content, mode);
             var button = new Button { Content = text, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch, Padding = new(8, 7, 8, 7), Background = Ui.Brush(0, 0, 0, 0), BorderThickness = new(0) };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, line.Content);
             button.Click += async (_, _) => { if (line.Time is long time) { manualLyricsUntil = DateTime.MinValue; await SeekTrackAsync(time); UpdateLyrics(true); } };
