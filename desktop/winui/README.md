@@ -33,7 +33,8 @@ x64 系统；包内包含 .NET 和 Windows App SDK 运行时，无需另装 Pyth
 
 ## 功能与播放规格
 
-- 原有深色／玫瑰红布局、专辑背景模糊、主页精选、艺人双栏、专辑详情、歌曲筛选与搜索。
+- 原有深色／玫瑰红布局、桌面 Acrylic 毛玻璃与左右分层、透明导航高亮、主页精选、艺人双栏、专辑详情、歌曲筛选与搜索。
+- 顶部歌名、艺人文字和封面拖动窗口；歌曲列表中的当前播放／暂停标记与玫瑰红歌名。
 - 递归导入文件夹、本地多选导入、标签与封面批量编辑、原文件备份、重复与版本识别。
 - 自定义歌单、拖放与顺序调整、M3U 导入／导出、独立播放队列、本轮不重复的伪随机播放。
 - 自然结束后暂停两秒；手动切歌立即响应。恢复上次歌曲时不自动播放。
@@ -83,7 +84,7 @@ Python 生成静音样本，再运行真正的 Release EXE；它不传入开发�
 生成安装版需要 [Inno Setup 7](https://jrsoftware.org/isinfo.php)，先验证便携包，再运行：
 
 ```powershell
-python winui/build_installer.py 'winui/artifacts/my-winui-build' --iscc 'C:/Tools/Inno Setup 7/ISCC.exe' --version '2.0.0-preview.3' --output-dir 'winui/artifacts/installers'
+python winui/build_installer.py 'winui/artifacts/my-winui-build' --iscc 'C:/Tools/Inno Setup 7/ISCC.exe' --version '2.0.0-preview.5' --output-dir 'winui/artifacts/installers'
 ```
 
 安装器逐文件校验输入目录后编译，不自动关闭运行中的播放器，不卸载旧 Qt 版，

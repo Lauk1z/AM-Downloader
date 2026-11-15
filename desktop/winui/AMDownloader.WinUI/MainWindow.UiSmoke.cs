@@ -29,6 +29,18 @@ public sealed partial class MainWindow
         Require(navigationIndicator.Visibility == Visibility.Visible && end == navigationIndicatorTarget, "快速切页后红条没有停在最后选中的栏目");
         var marker = new { start = start.ToString(), middle = middle.ToString(), end = end.ToString() };
 
+        Navigate("recent"); await Task.Delay(150); var selected = navButtons["recent"];
+        foreach (var state in new[] { "Normal", "PointerOver", "Pressed" })
+        {
+            Require(VisualStateManager.GoToState(selected, state, false), "导航按钮缺少交互状态：" + state); await Task.Delay(100);
+            var face = Descendants<ContentPresenter>(selected).First();
+            Require(face.Background is SolidColorBrush ink && ink.Color.A is > 0 and < 255, "导航选中背景遮住了底层毛玻璃：" + state);
+            Require(selected.Opacity == 1 && face.CornerRadius == selected.CornerRadius, "导航文字透明度或选中背景圆角被改变");
+            await CaptureAsync("navigation-glass-" + state);
+        }
+        VisualStateManager.GoToState(selected, "Normal", false); Navigate("albums"); await Task.Delay(100);
+        Require(selected.Background is SolidColorBrush { Color.A: 0 } && navButtons["albums"].Background is SolidColorBrush { Color.A: > 0 and < 255 }, "切换栏目后毛玻璃选中状态未更新");
+
         var artworkChecks = new List<string>();
         if (tracks.FirstOrDefault(x => x.Cover.Length > 0) is { } sample)
         {
@@ -91,7 +103,7 @@ public sealed partial class MainWindow
             TogglePanel("lyrics");
         }
         finally { AppWindow.Resize(originalSize); }
-        return new { navigation = "15-rapid-switches,persistent-buttons-and-images,no-image-reopen", albumCovers = covers.Count, marker, artworkChecks, layoutChecks, ok = true };
+        return new { navigation = "15-rapid-switches,persistent-buttons-and-images,no-image-reopen,translucent-selection-normal-hover-pressed", albumCovers = covers.Count, marker, artworkChecks, layoutChecks, ok = true };
         static void Require(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); }
         async Task CaptureAsync(string name) { var bitmap = new RenderTargetBitmap(); await bitmap.RenderAsync(root); await SaveScreenshotAsync(bitmap, Path.Combine(folder, name + ".png")); }
     }

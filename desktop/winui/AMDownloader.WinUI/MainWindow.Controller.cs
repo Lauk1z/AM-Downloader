@@ -34,7 +34,6 @@ public sealed partial class MainWindow
             if (queue.All(x => x.Path != last)) queue.Add(track);
             playIndex = queue.FindIndex(x => x.Path == last); await Audio.LoadAsync(track, false);
             await LoadLyricsAsync(track);
-            if (track.Cover.Length > 0) { Ui.SetImage(backdrop, await Library.BackdropAsync(track.Cover)); backdropSource = track.Cover; }
         }
         RenderPage(); UpdatePlayer();
         if (options.Smoke is not null) await RunSmokeAsync(options.Smoke);
@@ -67,6 +66,7 @@ public sealed partial class MainWindow
     }
     private void RenderPage(bool transition = false)
     {
+        pageTrackRows.Clear();
         pageHost.Content = page switch
         {
             "home" => HomePage(), "artists" => ArtistsPage(), "albums" => AlbumsPage(),
@@ -108,11 +108,6 @@ public sealed partial class MainWindow
         var recent = Store.Get("recently_played", new List<string>()); recent.Remove(track.Path); recent.Insert(0, track.Path); Store.Set("recently_played", recent.Take(100).ToList());
         await Audio.LoadAsync(track, autoplay); if (Audio.Current?.Path != track.Path) return;
         RefreshPanel(); await LoadLyricsAsync(track);
-        if (track.Cover.Length > 0 && backdropSource != track.Cover)
-        {
-            var expected = track.Path; var blurred = await Library.BackdropAsync(track.Cover);
-            if (Audio.Current?.Path == expected) { Ui.SetImage(backdrop, blurred); backdropSource = track.Cover; }
-        }
     }
     private async Task TogglePlayAsync() => await Guard(async () =>
     {
@@ -170,7 +165,7 @@ public sealed partial class MainWindow
         tray?.Update(track is null ? "AM Dowloader" : track.Title + " · " + track.Artist,
             Audio.State is "playing" or "starting" || trackGap.Running || Audio.Preparing && Audio.PrepareAutoplay,
             track is not null || tracks.Count > 0, queue.Count > 0);
-        UpdateLyrics();
+        UpdateLyrics(); UpdatePlaybackRows();
     }
     private void ToggleCurrentFavourite()
     { if (Audio.Current is { } track) { if (!favourites.Add(track.Path)) favourites.Remove(track.Path); Store.Set("favourites", favourites.ToList()); UpdatePlayer(); if (page == "favourites") RenderPage(); } }
@@ -179,10 +174,10 @@ public sealed partial class MainWindow
         if (volumePanel.Visibility == Visibility.Visible) { HideVolume(); return; }
         volumeTimer.Stop(); volumeSlider.Value = Audio.Volume; volumeSlider.IsEnabled = Audio.Config.Mode == "shared";
         ToolTipService.SetToolTip(volumeSlider, Audio.Config.Mode == "shared" ? "系统共享音量" : "独占输出直通 · 请调节 DAC 音量");
-        playerActions.Visibility = Visibility.Collapsed; volumePanel.Visibility = Visibility.Visible; Ui.Animate(volumePanel);
+        playerActions.Visibility = Visibility.Collapsed; volumePanel.Visibility = Visibility.Visible; Ui.Animate(volumePanel); Dispatch(UpdateDragRegions);
     }
-    private void HideVolume() { volumeTimer.Stop(); volumePanel.Visibility = Visibility.Collapsed; playerActions.Visibility = Visibility.Visible; }
-    private void ToggleFullscreen() { fullscreen = !fullscreen; AppWindow.SetPresenter(fullscreen ? AppWindowPresenterKind.FullScreen : AppWindowPresenterKind.Overlapped); Ui.Animate(root); }
+    private void HideVolume() { volumeTimer.Stop(); volumePanel.Visibility = Visibility.Collapsed; playerActions.Visibility = Visibility.Visible; Dispatch(UpdateDragRegions); }
+    private void ToggleFullscreen() { fullscreen = !fullscreen; AppWindow.SetPresenter(fullscreen ? AppWindowPresenterKind.FullScreen : AppWindowPresenterKind.Overlapped); Ui.Animate(root); Dispatch(UpdateDragRegions); }
     public void Restore() { AppWindow.Show(); TrayIcon.Show(WinRT.Interop.WindowNative.GetWindowHandle(this)); Activate(); }
     private void HandleTray(string command)
     {

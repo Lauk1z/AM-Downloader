@@ -1,9 +1,11 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Text.Json;
 using AMDownloader.Core;
 using AMDownloader.WinUI.Views;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Markup;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -166,6 +168,7 @@ public sealed partial class MainWindow
         }
         void Select()
         {
+            pageTrackRows.Clear();
             var group = groups.First(x => x.Key == selectedArtist); var content = Ui.Stack(22); sections.Clear();
             var heading = new Grid { ColumnSpacing = 12 }; heading.ColumnDefinitions.Add(new() { Width = new(1, GridUnitType.Star) }); heading.ColumnDefinitions.Add(new() { Width = GridLength.Auto });
             var name = Ui.Stack(8); name.Children.Add(Ui.Text(selectedArtist, 28, true)); name.Children.Add(Ui.Text($"{group.Select(x => x.AlbumKey).Distinct().Count()} 张专辑 · {group.Count()} 首歌曲", 13, color: Ui.Muted)); heading.Children.Add(name);
@@ -186,7 +189,10 @@ public sealed partial class MainWindow
                     var normal = row.Background; row.BackgroundTransition = new BrushTransition { Duration = TimeSpan.FromMilliseconds(83) };
                     row.PointerEntered += (_, _) => row.Background = Ui.Brush(32, 255, 255, 255); row.PointerExited += (_, _) => row.Background = normal;
                     row.ColumnDefinitions.Add(new() { Width = new(24) }); row.ColumnDefinitions.Add(new() { Width = new(1, GridUnitType.Star) }); row.ColumnDefinitions.Add(new() { Width = new(45) }); row.ColumnDefinitions.Add(new() { Width = new(32) });
-                    row.Children.Add(Ui.Text(track.Number.ToString())); var text = Ui.Stack(0); text.Children.Add(Ui.Text(track.Title)); text.Children.Add(Ui.Text(track.Artist, 12, color: Ui.Muted)); Grid.SetColumn(text, 1); row.Children.Add(text);
+                    var model = CreateTrackRow(track, track.Number - 1); row.Tag = model;
+                    row.Children.Add(TrackMarker(model)); var text = Ui.Stack(0); var title = Ui.Text(track.Title);
+                    title.SetBinding(TextBlock.ForegroundProperty, new Binding { Source = model, Path = new PropertyPath(nameof(TrackRow.TitleBrush)) });
+                    text.Children.Add(title); text.Children.Add(Ui.Text(track.Artist, 12, color: Ui.Muted)); Grid.SetColumn(text, 1); row.Children.Add(text);
                     var time = Ui.Text(track.TimeText); Grid.SetColumn(time, 2); row.Children.Add(time); var more = Ui.MenuIcon("歌曲操作", () => TrackMenu([track], items, items.IndexOf(track)), 14); Grid.SetColumn(more, 3); row.Children.Add(more);
                     row.DoubleTapped += (_, _) => _ = PlayTracksAsync(items, items.IndexOf(track)); Ui.AddMenu(row, () => TrackMenu([track], items, items.IndexOf(track))); right.Children.Add(row);
                 }
@@ -231,7 +237,7 @@ public sealed partial class MainWindow
     }
     private Border TrackTable(List<Track> values, Playlist? playlist = null)
     {
-        var rows = new ObservableCollection<TrackRow>(values.Select((x, i) => new TrackRow(x, i, favourites.Contains(x.Path), playlist?.Entries[i])));
+        var rows = new ObservableCollection<TrackRow>(values.Select((x, i) => CreateTrackRow(x, i, playlist?.Entries[i])));
         var list = new ListView { ItemsSource = rows, SelectionMode = ListViewSelectionMode.Extended, CanDragItems = true, CanReorderItems = playlist is not null, AllowDrop = playlist is not null, Background = Ui.Brush(0, 0, 0, 0), HorizontalContentAlignment = HorizontalAlignment.Stretch };
         list.Resources["ListViewItemCornerRadius"] = new CornerRadius(7);
         list.ItemContainerStyle = new Style { TargetType = typeof(ListViewItem), BasedOn = (Style)Application.Current.Resources["DefaultListViewItemStyle"], Setters = { new Setter(Control.PaddingProperty, new Thickness(0)), new Setter(FrameworkElement.MarginProperty, new Thickness(16, 0, 12, 0)) } };
@@ -241,11 +247,8 @@ public sealed partial class MainWindow
             <DataTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
               <Grid Padding="10,12" ColumnSpacing="12" MinHeight="52" CornerRadius="7" Background="{Binding Background}">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="30"/><ColumnDefinition Width="4*"/><ColumnDefinition Width="1.1*"/><ColumnDefinition Width="1.4*"/><ColumnDefinition Width="1.4*"/><ColumnDefinition Width="45"/></Grid.ColumnDefinitions>
-                <TextBlock Text="{Binding IndexText}" VerticalAlignment="Center" Foreground="{Binding MarkerBrush}"/>
-                <Viewbox Width="14" Height="14" HorizontalAlignment="Left" VerticalAlignment="Center" Visibility="{Binding FavouriteVisibility}">
-                  <Canvas Width="24" Height="24"><Path Data="{Binding FavouriteData}" Fill="{Binding MarkerBrush}"/></Canvas>
-                </Viewbox>
-                <TextBlock Grid.Column="1" Text="{Binding Track.Title}" TextWrapping="Wrap" MaxLines="2" VerticalAlignment="Center"/>
+            """ + TrackMarkerMarkup + """
+                <TextBlock Grid.Column="1" Text="{Binding Track.Title}" Foreground="{Binding TitleBrush}" ToolTipService.ToolTip="{Binding PlaybackTip}" TextWrapping="Wrap" MaxLines="2" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="2" Text="{Binding Track.Artist}" TextWrapping="Wrap" MaxLines="2" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="3" Text="{Binding Track.Album}" TextWrapping="Wrap" MaxLines="2" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="4" Text="{Binding Track.Quality}" TextWrapping="Wrap" MaxLines="2" VerticalAlignment="Center"/>
@@ -290,14 +293,25 @@ public sealed partial class MainWindow
         var scroll = Ui.Scroll(remote); Grid.SetRow(scroll, 1); grid.Children.Add(scroll); return PageFrame("搜索", $"“{term}” · 资料库 {local.Count} 首歌曲", grid);
     }
 }
-public sealed class TrackRow(Track track, int index, bool favourite, PlaylistEntry? entry = null)
+public sealed class TrackRow(Track track, int index, bool favourite, PlaylistEntry? entry = null) : INotifyPropertyChanged
 {
+    private readonly string pathKey = Core.Paths.Key(track.Path);
+    private string playback = "";
+    public event PropertyChangedEventHandler? PropertyChanged;
     public Track Track { get; } = track;
     public PlaylistEntry? Entry { get; } = entry;
     public int OriginalIndex { get; } = index;
-    public string IndexText => favourite ? "" : (OriginalIndex + 1).ToString();
-    public string FavouriteData => Icons.StarData;
-    public Visibility FavouriteVisibility => favourite ? Visibility.Visible : Visibility.Collapsed;
-    public Brush MarkerBrush => favourite ? Ui.Accent : Ui.Brush(255, 205, 205, 211);
+    public bool IsCurrent => playback.Length > 0;
+    public string IndexText => IsCurrent || favourite ? "" : (OriginalIndex + 1).ToString();
+    public string MarkerData => IsCurrent ? playback == "已暂停" ? Icons.PauseData : Icons.PlayData : Icons.StarData;
+    public Visibility MarkerVisibility => IsCurrent || favourite ? Visibility.Visible : Visibility.Collapsed;
+    public Brush MarkerBrush => IsCurrent || favourite ? Ui.Accent : Ui.Brush(255, 205, 205, 211);
+    public Brush TitleBrush => IsCurrent ? Ui.Accent : Ui.Brush(255, 238, 238, 242);
+    public string? PlaybackTip => IsCurrent ? playback : favourite ? "喜爱的歌曲" : null;
     public Brush Background => OriginalIndex % 2 == 0 ? Ui.Brush(65, 65, 63, 70) : Ui.Brush(0, 0, 0, 0);
+    internal void SetPlayback(string currentPath, string status)
+    {
+        var next = pathKey == currentPath ? status : ""; if (playback == next) return;
+        playback = next; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null));
+    }
 }

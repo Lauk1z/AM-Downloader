@@ -8,7 +8,7 @@
 <p align="center">原生 WinUI 3 · Windows x64 · WASAPI / ASIO · 原生 DSD / DoP · CUE / SACD ISO</p>
 
 <p align="center">
-  <a href="https://github.com/Lauk1z/AM-Downloader/releases/tag/v2.0.0-preview.4">下载 WinUI 3 预览版</a> ·
+  <a href="https://github.com/Lauk1z/AM-Downloader/releases/tag/v2.0.0-preview.5">下载 WinUI 3 预览版</a> ·
   <a href="https://github.com/Lauk1z/AM-Downloader/releases/tag/v1.5.2">1.5.2 稳定版</a> ·
   <a href="#界面预览">界面预览</a> ·
   <a href="#播放与解码规格">播放规格</a> ·
@@ -22,7 +22,7 @@ AM Downloader 是一款面向 Windows 的音乐下载、本地播放与资料库
 
 也可以只把它作为本地播放器使用：导入文件或整个文件夹，浏览不同版本的专辑，无需登录 Apple 账号。
 
-**当前 WinUI 预览版：2.0.0-preview.4；稳定版：1.5.2。**新版运行入口是 `AM Downloader WinUI.exe`，界面名称沿用 `AM Dowloader`。本次更新深灰圆角托盘菜单，修复菜单外空白处点击后不收起的问题，并提供浮动、逐字高亮和普通整句高亮三种歌词模式；继续提供安装版 EXE，详见 [更新说明](docs/releases/v2.0.0-preview.4.md)。真实 Apple 账号、DAC 独占播放和部分编码样本仍需实机验收；不把旧 Qt 版的硬件测试当作新版测试结果。项目由独立开发者维护，与 Apple Inc. 无隶属、合作或背书关系。
+**当前 WinUI 预览版：2.0.0-preview.5；稳定版：1.5.2。**新版运行入口是 `AM Downloader WinUI.exe`，界面名称沿用 `AM Dowloader`。本次加入当前播放歌曲标记和桌面 Acrylic 毛玻璃，修复顶部拖动、导航选中高亮与分组对齐，并精修 17 个界面图标；继续提供安装版 EXE，详见 [更新说明](docs/releases/v2.0.0-preview.5.md)。真实 Apple 账号、DAC 独占播放和部分编码样本仍需实机验收；不把旧 Qt 版的硬件测试当作新版测试结果。项目由独立开发者维护，与 Apple Inc. 无隶属、合作或背书关系。
 
 ## 界面预览
 
@@ -44,7 +44,7 @@ AM Downloader 是一款面向 Windows 的音乐下载、本地播放与资料库
 
 ![AM Downloader 音频输出设置：输出模式、设备、DSD 播放方式与应用设置](docs/screenshots/audio-output.png)
 
-前两张为 WinUI 3 正式发布 EXE 在独立测试资料库中的实际渲染，使用生成的封面和示例歌词；第三张为旧版实际界面。其中的第三方专辑封面与歌词版权归各自权利人所有。
+前两张为此前 WinUI 3 预览版在独立测试资料库中的静态渲染，使用生成的封面和示例歌词，供布局参考；当前版本的系统 Acrylic 背景以实际运行效果为准。第三张为旧版实际界面。其中的第三方专辑封面与歌词版权归各自权利人所有。
 
 ## 主要功能
 
@@ -60,20 +60,21 @@ AM Downloader 是一款面向 Windows 的音乐下载、本地播放与资料库
 | 自定义歌单 | 新建、重命名、多选拖入、拖动排序，导入 / 导出 M3U 与 M3U8 |
 | 歌词 | 本地／增强 LRC、上下渐隐、平滑滚动和点击跳转；可选浮动、逐字高亮、普通整句高亮三种模式，普通 LRC 的逐字进度按句内时间估算 |
 | 播放队列 | 独立的「正在播放」侧栏，支持下一首播放、最后播放、排序、移除及重启恢复 |
+| 播放状态 | 当前曲目显示玫瑰红歌名与播放／暂停标记，切歌、切页和滚动后同步更新，保留用户的多选状态 |
 | 播放方式 | 顺序、循环和每轮不重复的洗牌随机；自动切歌前留出 2 秒间隔，手动切歌立即响应 |
 | 输出链路 | 查看源格式、解码或 DSD 传输方式、接口、设备、音量处理与实际协商状态 |
 | 托盘与单实例 | 深灰圆角托盘菜单，点击外部自动收起；托盘中继续播放和下载；重复启动唤回原窗口；关闭时可选择收起或退出，并记住选择 |
-| 界面 | 深色主题、随封面变化的模糊背景、平滑滚动与页面过渡、高 DPI 图标 |
+| 界面 | 桌面 Acrylic 毛玻璃、左右透明度分层、透明导航高亮、顶部文字／封面拖动、平滑滚动与页面过渡、圆润矢量图标 |
 
 重新启动会恢复上次的队列与最后歌曲，**不会自动开始播放**。当前没有无缝播放或交叉淡化。
 
 ## 下载与开始使用
 
-在 [2.0.0-preview.4 Release](https://github.com/Lauk1z/AM-Downloader/releases/tag/v2.0.0-preview.4) 下载 `AM-Downloader-2.0.0-preview.4-WinUI3-Windows-x64-Setup.exe` 安装版，或选择同版本便携 ZIP，完整解压后运行 `AM Downloader WinUI.exe`。源码归档不能直接运行。升级前请在托盘菜单选择「退出」。
+在 [2.0.0-preview.5 Release](https://github.com/Lauk1z/AM-Downloader/releases/tag/v2.0.0-preview.5) 下载 `AM-Downloader-2.0.0-preview.5-WinUI3-Windows-x64-Setup.exe` 安装版，或选择同版本便携 ZIP，完整解压后运行 `AM Downloader WinUI.exe`。源码归档不能直接运行。升级前请在托盘菜单选择「退出」。
 
 - Windows 10 2004（19041）及更新版本，x64。包内带 .NET 和 Windows App SDK 运行时，无需另装 Python、.NET SDK、QEMU 或 foobar2000 插件；ASIO 需自行安装 DAC 对应的 64 位驱动。
 - 安装版约 **374 MiB**，默认安装到当前用户的 `%LOCALAPPDATA%\Programs\AM Downloader`，支持选择目录、开始菜单／可选桌面快捷方式及卸载。卸载保留个人资料库和音乐，安装器尚未进行代码签名。
-- 便携版保留整个解压目录及其子目录，不能只复制 EXE。ZIP **463,882,638 字节（约 442 MiB）**，解压约 **842 MiB**；账号镜像、音乐和播放缓存另占空间。
+- 便携版保留整个解压目录及其子目录，不能只复制 EXE。ZIP **463,870,783 字节（约 442 MiB）**，解压约 **842 MiB**；账号镜像、音乐和播放缓存另占空间。
 - 后端可使用已启用且可用的 Windows Hypervisor Platform 加速；不可用时采用兼容方式，不自行开启 Windows 功能。首次初始化需要额外时间与磁盘空间。
 - 发布页提供 `SHA256SUMS.txt`；包内 `manifest.sha256.json` 可核对全部文件。
 - 1.5.2 稳定版仍可单独下载，入口为 `AM Dowloader.exe`，其 `_internal` 等目录不能与 WinUI 包混用。
@@ -162,7 +163,7 @@ M4A、Ogg、WavPack 等容器按实际编码识别，不把整个扩展名等同
 
 下载设置支持 ALAC、AAC、Dolby Digital / Atmos 及相关 AAC 选项；ALAC 采样率上限可选 44.1 / 48 / 96 / 192 kHz，位深上限可选 16 / 24 bit。最终文件取决于实际音源、账号地区和权限，所选格式不可用时由用户确认替代格式。**这些下载上限不限制本地文件的播放规格。**
 
-WinUI preview.1 已通过 **126 项核心断言、26 项引擎测试、4 项音频服务回归，以及正式发布 EXE 的 25 项界面与生命周期检查**；18 种生成音频、DSD64–512 / DoP 字节与定位检查通过。preview.2 补充 28 组图标的三种尺寸和四种状态检查。preview.3 已通过 **132 项核心断言、正式包 28 项原生集成检查、4,414 个文件的校验与包外运行，以及安装／覆盖升级／卸载检查**。歌词渐隐的合成连接已检查，动态观感和帧率尚未人工验收。此前 USB DAC ASIO 驱动连续三次查询报告 DSD64 / 128 / 256 / 512，这只证明能力查询，不证明相应档位已实际播放。
+WinUI preview.1 已通过 **126 项核心断言、26 项引擎测试、4 项音频服务回归，以及正式发布 EXE 的 25 项界面与生命周期检查**；18 种生成音频、DSD64–512 / DoP 字节与定位检查通过。preview.2 补充 28 组图标的三种尺寸和四种状态检查。preview.3 已通过 **132 项核心断言、正式包 28 项原生集成检查、4,414 个文件的校验与包外运行，以及安装／覆盖升级／卸载检查**。preview.5 的正式运行包已通过 **30 项原生集成检查、4,420 个文件校验和安装／覆盖升级／卸载检查**；顶部歌名与封面拖动、后方窗口毛玻璃和透明导航高亮另经真实桌面窗口操作验证。歌词渐隐的合成连接已检查，动态观感和帧率尚未人工验收。此前 USB DAC ASIO 驱动连续三次查询报告 DSD64 / 128 / 256 / 512，这只证明能力查询，不证明相应档位已实际播放。
 
 真实 Apple 登录与下载、实际 DAC 的 WASAPI / ASIO / DoP / 原生 DSD 播放、真实 APE / TAK / Musepack / DST 样本及高刷新率动画体验，尚需新版实机验收。详见 [WinUI 验证与待验收范围](desktop/winui/MIGRATION.md)。[旧版测试记录](desktop/TEST_REPORT.md) 仅作为历史参考。
 

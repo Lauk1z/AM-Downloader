@@ -25,6 +25,5 @@ public sealed class LibraryService : IAsyncDisposable
         return (result.GetProperty("tracks").Deserialize<List<Track>>(StateStore.Json)!, result.GetProperty("errors").Deserialize<List<string>>()!);
     }
     public async Task<string> PrepareAsync(Track track, CancellationToken cancel) => (await CallAsync("prepare", new() { ["track"] = track }, cancel)).GetString()!;
-    public async Task<string> BackdropAsync(string cover) => (await CallAsync("backdrop", new() { ["cover"] = cover })).GetString()!;
     public ValueTask DisposeAsync() => process.DisposeAsync();
 }

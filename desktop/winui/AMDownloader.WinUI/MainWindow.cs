@@ -23,7 +23,6 @@ public sealed partial class MainWindow : Window
     internal AudioService Audio = null!;
     private BackendService? backend;
     private readonly Grid root = new();
-    private readonly Image backdrop = new() { Stretch = Stretch.UniformToFill, Opacity = .14 };
     private readonly StackPanel navigation = Ui.Stack(3);
     private readonly Border navigationIndicator = new() { Width = 3, Height = 16, CornerRadius = new(1.5), Background = Ui.Accent, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top, IsHitTestVisible = false, Visibility = Visibility.Collapsed };
     private Vector3? navigationIndicatorTarget;
@@ -48,7 +47,7 @@ public sealed partial class MainWindow : Window
     private DispatcherTimer searchTimer = null!;
     private TrayIcon? tray;
     private bool updatingProgress, seeking, quitting, closeDialogOpen;
-    private string page = "home", openPanel = "", backdropSource = "";
+    private string page = "home", openPanel = "";
     private string activeAlbum = "", selectedArtist = "";
     private double artistListOffset, artistDetailOffset;
     private int searchSerial;
@@ -90,6 +89,7 @@ public sealed partial class MainWindow : Window
         AppWindow.TitleBar.ButtonBackgroundColor = Colors.Transparent; AppWindow.TitleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
         AppWindow.TitleBar.ButtonForegroundColor = ColorHelper.FromArgb(255, 200, 200, 207);
         AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Standard;
+        SystemBackdrop = new DesktopAcrylicBackdrop();
         BuildShell(); AppWindow.Closing += OnClosing;
         tray = new TrayIcon(WinRT.Interop.WindowNative.GetWindowHandle(this), Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico"), HandleTray);
         AppWindow.Changed += (_, e) => { if (e.DidSizeChange) Dispatch(UpdateDragRegions); };
@@ -102,9 +102,9 @@ public sealed partial class MainWindow : Window
     private void BuildShell()
     {
         root.KeyboardAcceleratorPlacementMode = KeyboardAcceleratorPlacementMode.Hidden;
-        root.Background = Ui.Brush(255, 32, 32, 34); root.Children.Add(backdrop);
+        root.Background = new SolidColorBrush(Colors.Transparent);
         var shell = new Grid(); shell.ColumnDefinitions.Add(new() { Width = new(224) }); shell.ColumnDefinitions.Add(new() { Width = new(1, GridUnitType.Star) }); root.Children.Add(shell);
-        var sidebar = new Grid { Background = Ui.Brush(100, 38, 36, 43), Padding = new(8, 13, 8, 12), RowSpacing = 12 };
+        var sidebar = new Grid { Background = Ui.Brush(150, 38, 36, 43), Padding = new(8, 13, 8, 12), RowSpacing = 12 };
         foreach (var height in new[] { GridLength.Auto, GridLength.Auto, new(1, GridUnitType.Star), GridLength.Auto, GridLength.Auto, GridLength.Auto }) sidebar.RowDefinitions.Add(new() { Height = height });
         var branding = new Grid { Margin = new(10, 0, 0, 0), ColumnSpacing = 8 }; branding.ColumnDefinitions.Add(new() { Width = new(23) }); branding.ColumnDefinitions.Add(new() { Width = new(1, GridUnitType.Star) }); branding.ColumnDefinitions.Add(new() { Width = new(29) });
         branding.Children.Add(Ui.Image(Path.Combine(AppContext.BaseDirectory, "Assets", "app.svg"), 23)); var brandName = Ui.Text("AM Dowloader", 16, true); brandName.TextWrapping = TextWrapping.NoWrap; Grid.SetColumn(brandName, 1); branding.Children.Add(brandName); var refresh = Ui.Icon("\uE72C", "重新扫描资料库", () => _ = ScanAsync(), 17); Grid.SetColumn(refresh, 2); branding.Children.Add(refresh); sidebar.Children.Add(branding); captionControls.AddRange([refresh, search]);
@@ -115,7 +115,7 @@ public sealed partial class MainWindow : Window
         notice.Margin = backendStatus.Margin = new(12, 0, 4, 0); Grid.SetRow(notice, 3); Grid.SetRow(backendStatus, 4); sidebar.Children.Add(notice); sidebar.Children.Add(backendStatus);
         var footer = new Grid(); footer.ColumnDefinitions.Add(new() { Width = new(1, GridUnitType.Star) }); footer.ColumnDefinitions.Add(new() { Width = GridLength.Auto });
         footer.Children.Add(Ui.Button("设置", () => Navigate("settings"), icon: "settings")); var add = Ui.Icon("\uE710", "添加音乐 · Ctrl+L", () => _ = AddMusicAsync(), 16); Grid.SetColumn(add, 1); footer.Children.Add(add); Grid.SetRow(footer, 5); sidebar.Children.Add(footer); shell.Children.Add(sidebar);
-        var main = new Grid(); main.RowDefinitions.Add(new() { Height = new(64) }); main.RowDefinitions.Add(new() { Height = new(1, GridUnitType.Star) }); Grid.SetColumn(main, 1); shell.Children.Add(main);
+        var main = new Grid { Background = Ui.Brush(200, 32, 32, 34) }; main.RowDefinitions.Add(new() { Height = new(64) }); main.RowDefinitions.Add(new() { Height = new(1, GridUnitType.Star) }); Grid.SetColumn(main, 1); shell.Children.Add(main);
         main.Children.Add(BuildPlayer()); body.Content = pageHost; Grid.SetRow(body, 1); main.Children.Add(body);
         Content = root; BuildNavigation();
         root.AllowDrop = true; root.DragOver += (_, e) => { if (e.AcceptedOperation == Windows.ApplicationModel.DataTransfer.DataPackageOperation.None && e.DataView.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.StorageItems)) e.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy; };
@@ -176,7 +176,12 @@ public sealed partial class MainWindow : Window
         root.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler((_, e) => { if (volumePanel.Visibility != Visibility.Visible) return; var point = e.GetCurrentPoint(volumePanel).Position; if (point.X < 0 || point.X > volumePanel.ActualWidth || point.Y < 0 || point.Y > volumePanel.ActualHeight) HideVolume(); }), true);
         Grid.SetColumn(actions, 2); bar.Children.Add(actions);
         var drag = new Grid { Background = new SolidColorBrush(Colors.Transparent) }; Grid.SetColumn(drag, 3); bar.Children.Add(drag);
-        captionControls.AddRange([transport, playing, actions]); bar.SizeChanged += (_, _) => Dispatch(UpdateDragRegions);
+        captionControls.AddRange(transport.Children.OfType<Button>());
+        captionControls.AddRange(playerActions.Children.OfType<Button>());
+        captionControls.AddRange([quality, menuButton, favouriteButton, progress, volumeLow, volumeSlider]);
+        title.SizeChanged += (_, _) => Dispatch(UpdateDragRegions);
+        labels.SizeChanged += (_, _) => Dispatch(UpdateDragRegions);
+        bar.SizeChanged += (_, _) => Dispatch(UpdateDragRegions);
         return bar;
     }
     private void BuildNavigation()
@@ -185,7 +190,9 @@ public sealed partial class MainWindow : Window
         void Nav(string key, string title, bool indent = false)
         {
             var button = Ui.Button(title, () => Navigate(key)); button.HorizontalAlignment = HorizontalAlignment.Stretch; button.HorizontalContentAlignment = HorizontalAlignment.Stretch; button.BorderThickness = new(0); button.Padding = new(0); button.MinHeight = 36;
-            button.Background = page == key ? Ui.Brush(255, 52, 52, 57) : new SolidColorBrush(Colors.Transparent);
+            button.Background = page == key ? Ui.Brush(24, 255, 255, 255) : new SolidColorBrush(Colors.Transparent);
+            button.Resources["ButtonBackgroundPointerOver"] = Ui.Brush(36, 255, 255, 255);
+            button.Resources["ButtonBackgroundPressed"] = Ui.Brush(20, 255, 255, 255);
             var row = new Grid { Padding = new(indent ? 22 : 2, 8, 8, 8), ColumnSpacing = 8 }; row.ColumnDefinitions.Add(new() { Width = new(3) }); row.ColumnDefinitions.Add(new() { Width = new(20) }); row.ColumnDefinitions.Add(new() { Width = new(1, GridUnitType.Star) });
             var symbol = key switch { "home" => "home", "recent" => "recent", "artists" => "artist", "albums" => "album", "songs" => "songs", "favourites" => "favourites", "queue" => "download", _ => "playlist" };
             UIElement graphic = key.StartsWith("album:") && tracks.FirstOrDefault(x => x.AlbumKey == key[6..]) is { } album ? Ui.Cover(album.Cover, 20, 2) : Icons.Create(symbol, 19);
@@ -195,10 +202,10 @@ public sealed partial class MainWindow : Window
         }
         StackPanel Heading(string title, string icon)
         {
-            var label = Ui.Stack(8, Orientation.Horizontal); label.Height = 18;
+            var label = Ui.Stack(8, Orientation.Horizontal); label.Height = 18; label.Name = title == "资料库" ? "LibraryHeading" : "PlaylistHeading";
             label.Children.Add(Icons.Create(icon, 17)); label.Children.Add(Ui.Text(title, 13, true, Ui.Muted)); return label;
         }
-        Nav("home", "主页"); navigation.Children.Add(Heading("资料库", "library"));
+        Nav("home", "主页"); var libraryHeading = Heading("资料库", "library"); libraryHeading.Margin = new(12, 0, 4, 0); navigation.Children.Add(libraryHeading);
         Nav("recent", "最近添加", true); Nav("artists", "艺人", true); Nav("albums", "专辑", true); Nav("songs", "歌曲", true);
         var heading = new Grid { Margin = new(12, 12, 4, 0) }; heading.Children.Add(Heading("播放列表", "playlist"));
         var plus = Ui.Icon("\uE710", "新建或导入歌单", PlaylistCreationMenu, 14); plus.HorizontalAlignment = HorizontalAlignment.Right; heading.Children.Add(plus); navigation.Children.Add(heading);
@@ -215,7 +222,7 @@ public sealed partial class MainWindow : Window
     }
     private void UpdateNavigationSelection(bool animate)
     {
-        foreach (var (key, button) in navButtons) button.Background = key == page ? Ui.Brush(255, 52, 52, 57) : Ui.Brush(0, 0, 0, 0);
+        foreach (var (key, button) in navButtons) button.Background = key == page ? Ui.Brush(24, 255, 255, 255) : Ui.Brush(0, 0, 0, 0);
         if (!navButtons.TryGetValue(page, out var selected) || !selected.IsLoaded)
         { navigationIndicator.Visibility = Visibility.Collapsed; return; }
         var row = (Grid)selected.Content;
@@ -234,10 +241,12 @@ public sealed partial class MainWindow : Window
     { var shortcut = new KeyboardAccelerator { Key = key, Modifiers = ctrl ? Windows.System.VirtualKeyModifiers.Control : Windows.System.VirtualKeyModifiers.None }; shortcut.Invoked += (_, e) => { e.Handled = true; action(); }; root.KeyboardAccelerators.Add(shortcut); }
     private void UpdateDragRegions()
     {
-        if (!AppWindowTitleBar.IsCustomizationSupported() || root.XamlRoot is null || fullscreen) return;
+        if (!AppWindowTitleBar.IsCustomizationSupported() || root.XamlRoot is null) return;
+        if (fullscreen) { AppWindow.TitleBar.SetDragRectangles([]); return; }
+        root.UpdateLayout();
         var scale = root.XamlRoot.RasterizationScale;
         var areas = new List<Windows.Foundation.Rect> { new(0, 0, Math.Max(0, root.ActualWidth - AppWindow.TitleBar.RightInset / scale), 64) };
-        foreach (var control in captionControls.Where(x => x.ActualWidth > 0 && x.ActualHeight > 0))
+        foreach (var control in captionControls.Where(x => x.IsLoaded && x.ActualWidth > 0 && x.ActualHeight > 0 && Visible(x)))
         {
             var point = control.TransformToVisual(root).TransformPoint(new()); var hit = new Windows.Foundation.Rect(point.X - 1, point.Y - 1, control.ActualWidth + 2, control.ActualHeight + 2);
             var remaining = new List<Windows.Foundation.Rect>();
@@ -253,6 +262,12 @@ public sealed partial class MainWindow : Window
             areas = remaining;
         }
         AppWindow.TitleBar.SetDragRectangles(areas.Select(x => new RectInt32((int)Math.Ceiling(x.X * scale), (int)Math.Ceiling(x.Y * scale), (int)Math.Floor(x.Width * scale), (int)Math.Floor(x.Height * scale))).Where(x => x.Width > 0 && x.Height > 0).ToArray());
+        static bool Visible(DependencyObject node)
+        {
+            for (DependencyObject? current = node; current is not null; current = VisualTreeHelper.GetParent(current))
+                if (current is UIElement element && element.Visibility != Visibility.Visible) return false;
+            return true;
+        }
     }
     internal void Dispatch(Action action) => DispatcherQueue.TryEnqueue(() => action());
     internal void Toast(string message) { notice.Text = message.Length > 100 ? message[..100] : message; ToolTipService.SetToolTip(notice, message); }
