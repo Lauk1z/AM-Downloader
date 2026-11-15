@@ -39,7 +39,7 @@ def main():
             package_zip.extractall(work)
         package, = [path for path in work.iterdir() if path.is_dir()]
         manifest = json.loads((package / "manifest.sha256.json").read_text(encoding="utf-8"))
-        for required in ("AM Downloader WinUI.pri", "App.xbf", "Microsoft.UI.Xaml.Controls.pri"):
+        for required in ("AM Downloader WinUI.pri", "App.xbf", "Microsoft.UI.Xaml.Controls.pri", "AMDownloader.Updater.exe", "AMDownloader.Updater.dll", "app-version.json"):
             if required not in manifest:
                 raise ValueError("Application XAML resource missing: " + required)
         actual = {path.relative_to(package).as_posix() for path in package.rglob("*") if path.is_file()}
@@ -68,7 +68,7 @@ def main():
         executable = package / "AM Downloader WinUI.exe"
         process = subprocess.run([str(executable), "--data-dir", str(fixture / "profile"),
                                   "--no-backend", "--smoke-test", str(fixture / "report.json")],
-                                 cwd=work, env=environment, timeout=130)
+                                 cwd=work, env=environment, timeout=180)
         smoke = json.loads((fixture / "report.json").read_text(encoding="utf-8"))
         if process.returncode != 0 or not smoke.get("ok"):
             raise ValueError("Packaged executable failed: " + json.dumps(smoke, ensure_ascii=False))

@@ -43,7 +43,7 @@ internal sealed class TrayMenuWindow : Window
 
         void Add(string command, string label, bool enabled = true)
         {
-            var button = new Button { Content = label, Tag = command, IsEnabled = enabled, Height = 30, MinHeight = 0,
+            var button = new TrayCommandButton { Content = label, Tag = command, IsEnabled = enabled, Height = 30, MinHeight = 0,
                 FontSize = 14, Padding = new(14, 0, 14, 0), CornerRadius = new(4), BorderThickness = new(0),
                 HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left,
                 Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent), Foreground = Ui.Brush(255, 242, 242, 245) };
@@ -62,7 +62,7 @@ internal sealed class TrayMenuWindow : Window
         var work = DisplayArea.GetFromPoint(anchor, DisplayAreaFallback.Nearest).WorkArea;
         AppWindow.Move(new(work.X, work.Y));
         var scale = GetDpiForWindow(WinRT.Interop.WindowNative.GetWindowHandle(this)) / 96d;
-        var width = Math.Min(320, work.Width / scale - 8);
+        var width = Math.Min(240, work.Width / scale - 8);
         Surface.Measure(new(width, double.PositiveInfinity));
         var size = new SizeInt32((int)Math.Ceiling(width * scale), (int)Math.Ceiling(Surface.DesiredSize.Height * scale));
         AppWindow.MoveAndResize(new(Math.Clamp(anchor.X - size.Width, work.X, Math.Max(work.X, work.X + work.Width - size.Width)),
@@ -73,6 +73,15 @@ internal sealed class TrayMenuWindow : Window
     }
 
     internal new void Close() { if (closed) return; closed = true; base.Close(); }
+
+    private sealed class TrayCommandButton : Button
+    {
+        protected override void OnApplyTemplate()
+        {
+            base.OnApplyTemplate();
+            if (GetTemplateChild("ContentPresenter") is ContentPresenter face) face.BackgroundTransition = null;
+        }
+    }
 
     private nint MouseInput(int code, nuint message, nint data)
     {

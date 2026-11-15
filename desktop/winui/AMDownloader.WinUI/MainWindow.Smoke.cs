@@ -31,10 +31,12 @@ public sealed partial class MainWindow
             checks.Add(await VerifyIconsUiAsync(folder));
             checks.Add(await VerifyPageUiAsync(folder));
             checks.Add(await VerifyShellUiAsync(folder));
+            checks.Add(await VerifyConsistencyAsync(folder));
             checks.Add(await VerifyLyricsUiAsync(folder));
             checks.Add(await tray!.VerifyMenuAsync(folder));
             checks.Add(await VerifyInteractionUiAsync(folder));
             checks.Add(await VerifyAudioSettingsUiAsync());
+            checks.Add(await VerifyUpdateUiAsync(folder));
             var initialQueue = queue.Select(x => x.Path).ToList(); var initialTrack = Audio.Current?.Path;
             var pages = new List<string> { "home", "recent", "artists", "albums", "songs", "favourites", "queue", "settings", "search" };
             if (tracks.Count > 0) pages.Add("album:" + tracks[0].AlbumKey);
@@ -59,8 +61,8 @@ public sealed partial class MainWindow
             detailScroll.ChangeView(null, offset, null, true); await Task.Delay(100); Navigate("home"); Navigate("artists"); await Task.Delay(350);
             detailScroll = (ScrollViewer)FindElement<ContentControl>(pageHost, "ArtistDetails")!.Content;
             Check(Math.Abs(detailScroll.VerticalOffset - offset) < 2, "切页后艺人详情丢失滚动位置"); TogglePanel("lyrics");
-            ToggleFullscreen(); await Task.Delay(300); Check(AppWindow.Presenter.Kind == Microsoft.UI.Windowing.AppWindowPresenterKind.FullScreen, "不能进入全屏");
-            ToggleFullscreen(); AppWindow.Resize(originalSize); await Task.Delay(350); checks.Add(new { layout = "compact-artists,lyrics,fullscreen-restore", ok = true });
+            ToggleFullscreen(); await Until(() => playerWindow?.IsAnimating == false, 3000); Check(playerWindow?.AppWindow.Presenter.Kind == Microsoft.UI.Windowing.AppWindowPresenterKind.FullScreen, "不能进入独立全屏播放");
+            SetPlayerView(PlayerViewMode.Library); AppWindow.Resize(originalSize); await Task.Delay(350); checks.Add(new { layout = "compact-artists,lyrics,fullscreen-restore", ok = true });
             Navigate("home"); TogglePanel("lyrics"); await Task.Delay(500); Check(body.IsPaneOpen, "歌词侧栏未打开");
             await SaveRootAsync("lyrics"); TogglePanel("lyrics");
             ShowVolume(); await Task.Delay(250); Check(volumePanel.Visibility == Visibility.Visible && playerActions.Visibility == Visibility.Collapsed, "音量没有在右侧播放器原位展开"); await SaveRootAsync("volume");
@@ -135,6 +137,7 @@ public sealed partial class MainWindow
                 await Audio.PlayAsync(); await Until(() => Audio.State == "playing", 5000); await Audio.PauseAsync();
                 checks.Add(new { playback = "shared-host,pause,seek,two-second-gap,pause-gap,seek-gap,probe-release,failure-recovery", ok = true });
             }
+            checks.Add(await VerifyPlayerViewsAsync(folder));
             await File.WriteAllTextAsync(report, JsonSerializer.Serialize(new { ok = true, framework = "Microsoft.UI.Xaml", checks }, StateStore.Json));
         }
         catch (Exception error) { await File.WriteAllTextAsync(report, JsonSerializer.Serialize(new { ok = false, error = error.ToString(), audio = new { Audio.State, Audio.Error, Audio.Position }, checks }, StateStore.Json)); }

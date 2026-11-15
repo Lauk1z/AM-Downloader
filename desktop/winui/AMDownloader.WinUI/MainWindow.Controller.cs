@@ -14,7 +14,6 @@ public sealed partial class MainWindow
 {
     private readonly SemaphoreSlim dialogs = new(1, 1);
     private JsonElement backendConfig;
-    private bool fullscreen;
     private async Task Guard(Func<Task> action)
     { try { await action(); } catch (OperationCanceledException) { } catch (Exception error) { Log(error.Message); Toast(error.Message); } }
     public async Task InitializeAsync() => await Guard(async () =>
@@ -36,6 +35,11 @@ public sealed partial class MainWindow
             await LoadLyricsAsync(track);
         }
         RenderPage(); UpdatePlayer();
+        if (options.Smoke is null)
+        {
+            _ = FinishUpdateAsync();
+            if (!options.NoBackend && Store.Get("auto_check_updates", true)) _ = CheckSoftwareUpdatesAsync(true);
+        }
         if (options.Smoke is not null) await RunSmokeAsync(options.Smoke);
     });
     private async Task ScanAsync() => await Guard(async () =>
@@ -131,7 +135,7 @@ public sealed partial class MainWindow
     });
     private void TrackEnded()
     {
-        if (queue.Count == 0 || (!shuffled && !repeat && playIndex >= queue.Count - 1)) return;
+        if (queue.Count == 0 || (!repeatOne && !shuffled && !repeat && playIndex >= queue.Count - 1)) return;
         trackGap.Start();
     }
     private void CancelGap() => trackGap.Cancel();
@@ -156,10 +160,12 @@ public sealed partial class MainWindow
         var track = Audio.Current;
         playerTitle.Text = track?.Title ?? "AM Dowloader";
         playerArtist.Text = track is null ? "选择一首音乐开始播放" : track.Artist + " — " + track.Album;
+        ToolTipService.SetToolTip(qualityButton, track is null ? "音质与音频输出链路" : track.Quality + " · 查看音频输出链路");
         if (playerCover.Tag as string != track?.Cover) { Ui.SetImage(playerCover, track?.Cover ?? ""); playerCover.Tag = track?.Cover; }
         Ui.SetGlyph(playButton, Audio.State is "playing" or "starting" || trackGap.Running || Audio.Preparing && Audio.PrepareAutoplay ? "\uE769" : "\uE768", 28);
         shuffleButton.Foreground = shuffled ? Ui.Accent : Ui.Muted;
         favouriteButton.Foreground = track is not null && favourites.Contains(track.Path) ? Ui.Accent : Ui.Muted;
+        UpdateRepeatButton(repeatButton); playerWindow?.UpdatePlayer();
         updatingProgress = true; progress.IsEnabled = track is not null && !Audio.Preparing; progress.Maximum = Math.Max(1, Audio.Duration); if (!seeking) progress.Value = Audio.Position; updatingProgress = false;
         elapsed.Text = track is null ? "" : Text.Duration(Audio.Position / 1000d); remaining.Text = track is null ? "" : "−" + Text.Duration((Audio.Duration - Audio.Position) / 1000d);
         tray?.Update(track is null ? "AM Dowloader" : track.Title + " · " + track.Artist,
@@ -177,14 +183,14 @@ public sealed partial class MainWindow
         playerActions.Visibility = Visibility.Collapsed; volumePanel.Visibility = Visibility.Visible; Ui.Animate(volumePanel); Dispatch(UpdateDragRegions);
     }
     private void HideVolume() { volumeTimer.Stop(); volumePanel.Visibility = Visibility.Collapsed; playerActions.Visibility = Visibility.Visible; Dispatch(UpdateDragRegions); }
-    private void ToggleFullscreen() { fullscreen = !fullscreen; AppWindow.SetPresenter(fullscreen ? AppWindowPresenterKind.FullScreen : AppWindowPresenterKind.Overlapped); Ui.Animate(root); Dispatch(UpdateDragRegions); }
+    private void ToggleFullscreen() => SetPlayerView(playerWindow?.IsFullscreen == true ? PlayerViewMode.Mini : PlayerViewMode.Fullscreen);
     public void Restore() { AppWindow.Show(); TrayIcon.Show(WinRT.Interop.WindowNative.GetWindowHandle(this)); Activate(); }
     private void HandleTray(string command)
     {
         switch (command)
         {
-            case "show": Restore(); break; case "play": _ = TogglePlayAsync(); break; case "previous": _ = SkipAsync(-1); break; case "next": _ = SkipAsync(1); break;
-            case "queue": Restore(); if (openPanel != "playing" || !body.IsPaneOpen) TogglePanel("playing"); break;
+            case "show": SetPlayerView(PlayerViewMode.Library); Restore(); break; case "play": _ = TogglePlayAsync(); break; case "previous": _ = SkipAsync(-1); break; case "next": _ = SkipAsync(1); break;
+            case "queue": SetPlayerView(PlayerViewMode.Library); Restore(); if (openPanel != "playing" || !body.IsPaneOpen) TogglePanel("playing"); break;
             case "output": Restore(); _ = ShowOutputChainAsync(); break;
             case "tray": MinimizeToTray(); break;
             case "quit": _ = ExitAsync(); break;
@@ -194,6 +200,7 @@ public sealed partial class MainWindow
     private async void OnClosing(AppWindow sender, AppWindowClosingEventArgs args)
     {
         if (quitting) return;
+        if (updateRunning) { args.Cancel = true; updateCancellation?.Cancel(); return; }
         args.Cancel = true; if (closeDialogOpen) return;
         var choice = Store.Get("close_action", "ask");
         if (choice == "tray") { MinimizeToTray(); return; }
@@ -214,12 +221,13 @@ public sealed partial class MainWindow
     private async Task ExitAsync()
     {
         if (quitting) return; quitting = true; CancelGap(); SaveQueue(); Store.Set("jobs", jobs); searchTimer.Stop(); volumeTimer.Stop(); activeDialog?.Hide(); loginWindow?.Close(); outputWindow?.Close();
-        await Audio.DisposeAsync();
+        playerWindow?.Close(); await Audio.DisposeAsync();
         if (backend is not null) await backend.DisposeAsync();
-        await Library.DisposeAsync(); tray?.Dispose(); tray = null; Close(); Application.Current.Exit();
+        await Library.DisposeAsync(); updateCheckCancellation?.Cancel(); updateClient.Dispose(); tray?.Dispose(); tray = null; Close(); Application.Current.Exit();
     }
     private async Task<ContentDialogResult> ShowDialogAsync(string title, UIElement content, string primary = "确定", string secondary = "", string close = "取消", Action<ContentDialog, ContentDialogButtonClickEventArgs>? validate = null, string? jobId = null)
     {
+        if (playerWindow is not null && title != "关闭 AM Dowloader") SetPlayerView(PlayerViewMode.Library);
         await dialogs.WaitAsync();
         try
         {

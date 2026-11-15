@@ -14,6 +14,7 @@ namespace AMDownloader.WinUI;
 public sealed partial class MainWindow
 {
     private List<LyricLine> lyricLines = [];
+    private string lyricTrackPath = "";
     private readonly List<Button> lyricButtons = [];
     private readonly List<LyricLineView> lyricViews = [];
     private ScrollViewer? lyricScroll;
@@ -27,6 +28,7 @@ public sealed partial class MainWindow
     }
     private void RefreshPanel()
     {
+        playerWindow?.RefreshQueue();
         if (openPanel.Length == 0) return;
         var panel = new Grid { Padding = new(16, 12, 12, 18), RowSpacing = 14 }; panel.RowDefinitions.Add(new() { Height = GridLength.Auto }); panel.RowDefinitions.Add(new() { Height = new(1, GridUnitType.Star) });
         var header = new Grid(); header.Children.Add(Ui.Text(openPanel == "lyrics" ? "歌词" : "正在播放", 19, true)); var close = Ui.Icon("\uE711", "收起侧栏", () => { openPanel = ""; body.IsPaneOpen = false; }, 14); close.HorizontalAlignment = HorizontalAlignment.Right; header.Children.Add(close); panel.Children.Add(header);
@@ -34,7 +36,7 @@ public sealed partial class MainWindow
     }
     private async Task LoadLyricsAsync(Track track)
     {
-        var path = track.Path; lyricLines = [];
+        var path = track.Path; lyricTrackPath = ""; lyricLines = []; playerWindow?.RefreshLyrics();
         if (track.Container.Length == 0)
         {
             var source = Path.ChangeExtension(track.Path, ".lrc");
@@ -48,9 +50,9 @@ public sealed partial class MainWindow
                 lyricLines = Lyrics.Parse(text.TrimStart('\ufeff'));
             }
         }
-        activeLyric = -1; if (openPanel == "lyrics") RefreshPanel();
+        lyricTrackPath = path; activeLyric = -1; if (LyricsVisible) RefreshPanel(); playerWindow?.RefreshLyrics();
     }
-    private UIElement BuildLyrics()
+    private UIElement BuildLyrics(double fontSize = 23)
     {
         foreach (var view in lyricViews) view.Deactivate();
         lyricButtons.Clear(); lyricViews.Clear(); activeLyric = -1;
@@ -58,7 +60,7 @@ public sealed partial class MainWindow
         var mode = LyricsMode;
         foreach (var line in lyricLines)
         {
-            var text = new LyricLineView(line.Content, mode);
+            var text = new LyricLineView(line.Content, mode, fontSize);
             var button = new Button { Content = text, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch, Padding = new(8, 7, 8, 7), Background = Ui.Brush(0, 0, 0, 0), BorderThickness = new(0) };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, line.Content);
             button.Click += async (_, _) => { if (line.Time is long time) { manualLyricsUntil = DateTime.MinValue; await SeekTrackAsync(time); UpdateLyrics(true); } };
@@ -73,7 +75,7 @@ public sealed partial class MainWindow
     }
     private void UpdateLyrics(bool force = false)
     {
-        if (openPanel != "lyrics" || lyricScroll is null || lyricButtons.Count != lyricLines.Count) return;
+        if (!LyricsVisible || lyricScroll is null || lyricButtons.Count != lyricLines.Count) return;
         var index = Lyrics.Active(lyricLines, Audio.Position);
         var changed = index != activeLyric;
         if (changed)

@@ -23,6 +23,8 @@ public sealed partial class MainWindow : Window
     internal AudioService Audio = null!;
     private BackendService? backend;
     private readonly Grid root = new();
+    private readonly TaskCompletionSource uiReady = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    internal Task UiReady => uiReady.Task;
     private readonly StackPanel navigation = Ui.Stack(3);
     private readonly Border navigationIndicator = new() { Width = 3, Height = 16, CornerRadius = new(1.5), Background = Ui.Accent, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top, IsHitTestVisible = false, Visibility = Visibility.Collapsed };
     private Vector3? navigationIndicatorTarget;
@@ -35,9 +37,10 @@ public sealed partial class MainWindow : Window
     private readonly Image playerCover = Ui.Image("", 52);
     private readonly TextBlock playerTitle = Ui.Text("AM Dowloader", 14, true);
     private readonly TextBlock playerArtist = Ui.Text("选择一首音乐开始播放", 13, color: Ui.Muted);
+    private Button qualityButton = null!;
     private readonly Slider progress = new() { MinHeight = 10, Height = 14, Margin = new(-8, -6, -8, -7), Minimum = 0, Maximum = 1 };
     private readonly TextBlock elapsed = Ui.Text("", 10, color: Ui.Muted), remaining = Ui.Text("", 10, color: Ui.Muted);
-    private Button playButton = null!, shuffleButton = null!, favouriteButton = null!;
+    private Button playButton = null!, shuffleButton = null!, favouriteButton = null!, repeatButton = null!;
     private StackPanel playerActions = null!;
     private Border volumePanel = null!;
     private Slider volumeSlider = null!;
@@ -53,7 +56,7 @@ public sealed partial class MainWindow : Window
     private int searchSerial;
     private List<Track> tracks = [], queue = [];
     private int playIndex = -1;
-    private bool shuffled, repeat;
+    private bool shuffled, repeat, repeatOne;
     private readonly ShuffleOrder shuffle = new();
     private HashSet<string> favourites;
     private List<Playlist> playlists;
@@ -79,7 +82,7 @@ public sealed partial class MainWindow : Window
         jobs = Store.Get("jobs", new List<DownloadJob>()); foreach (var job in jobs) if (job.State is not ("DONE" or "FAILED" or "cancelled")) job.State = "queued";
         queuePaused = jobs.Count > 0;
         Audio = new(Paths, Library, Store, Dispatch); Audio.Changed += UpdatePlayer; Audio.Ended += TrackEnded; Audio.Failed += Toast;
-        trackGap.Ready += () => _ = SkipAsync(1); trackGap.Changed += UpdatePlayer;
+        trackGap.Ready += () => _ = Guard(() => repeatOne && playIndex >= 0 ? SelectTrackAsync(playIndex, true) : SkipAsync(1)); trackGap.Changed += UpdatePlayer;
         Title = "AM Dowloader · 音乐";
         var scale = GetDpiForWindow(WinRT.Interop.WindowNative.GetWindowHandle(this)) / 96d;
         var work = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Nearest).WorkArea;
@@ -93,7 +96,7 @@ public sealed partial class MainWindow : Window
         BuildShell(); AppWindow.Closing += OnClosing;
         tray = new TrayIcon(WinRT.Interop.WindowNative.GetWindowHandle(this), Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico"), HandleTray);
         AppWindow.Changed += (_, e) => { if (e.DidSizeChange) Dispatch(UpdateDragRegions); };
-        root.Loaded += (_, _) => UpdateDragRegions();
+        root.Loaded += (_, _) => { UpdateDragRegions(); uiReady.TrySetResult(); };
         searchTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(280) };
         searchTimer.Tick += (_, _) => { searchTimer.Stop(); _ = SearchChangedAsync(); };
         search.TextChanged += (_, _) => { searchTimer.Stop(); searchTimer.Start(); };
@@ -114,16 +117,20 @@ public sealed partial class MainWindow : Window
         var navScroll = Ui.Scroll(navSurface); Grid.SetRow(navScroll, 2); sidebar.Children.Add(navScroll);
         notice.Margin = backendStatus.Margin = new(12, 0, 4, 0); Grid.SetRow(notice, 3); Grid.SetRow(backendStatus, 4); sidebar.Children.Add(notice); sidebar.Children.Add(backendStatus);
         var footer = new Grid(); footer.ColumnDefinitions.Add(new() { Width = new(1, GridUnitType.Star) }); footer.ColumnDefinitions.Add(new() { Width = GridLength.Auto });
-        footer.Children.Add(Ui.Button("设置", () => Navigate("settings"), icon: "settings")); var add = Ui.Icon("\uE710", "添加音乐 · Ctrl+L", () => _ = AddMusicAsync(), 16); Grid.SetColumn(add, 1); footer.Children.Add(add); Grid.SetRow(footer, 5); sidebar.Children.Add(footer); shell.Children.Add(sidebar);
+        var settingsActions = Ui.Stack(6, Orientation.Horizontal); settingsActions.Children.Add(Ui.Button("设置", () => Navigate("settings"), icon: "settings"));
+        updateBadge = Ui.Icon("download", "发现软件更新", () => _ = OfferUpdateAsync(), 14); updateBadge.Name = "UpdateBadge"; updateBadge.Width = updateBadge.Height = 28; updateBadge.CornerRadius = new(14); updateBadge.Foreground = Ui.Brush(255, 255, 255, 255); updateBadge.Background = Ui.Accent; updateBadge.Visibility = Visibility.Collapsed;
+        updateBadge.Resources["ButtonBackgroundPointerOver"] = Ui.Brush(255, 227, 48, 91); updateBadge.Resources["ButtonBackgroundPressed"] = Ui.Brush(255, 201, 42, 81); settingsActions.Children.Add(updateBadge); footer.Children.Add(settingsActions);
+        var add = Ui.Icon("\uE710", "添加音乐 · Ctrl+L", () => _ = AddMusicAsync(), 16); Grid.SetColumn(add, 1); footer.Children.Add(add); Grid.SetRow(footer, 5); sidebar.Children.Add(footer); shell.Children.Add(sidebar);
         var main = new Grid { Background = Ui.Brush(200, 32, 32, 34) }; main.RowDefinitions.Add(new() { Height = new(64) }); main.RowDefinitions.Add(new() { Height = new(1, GridUnitType.Star) }); Grid.SetColumn(main, 1); shell.Children.Add(main);
         main.Children.Add(BuildPlayer()); body.Content = pageHost; Grid.SetRow(body, 1); main.Children.Add(body);
         Content = root; BuildNavigation();
         root.AllowDrop = true; root.DragOver += (_, e) => { if (e.AcceptedOperation == Windows.ApplicationModel.DataTransfer.DataPackageOperation.None && e.DataView.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.StorageItems)) e.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy; };
         root.Drop += async (_, e) => { if (e.DataView.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.StorageItems)) { var items = await e.DataView.GetStorageItemsAsync(); await ImportPathsAsync(items.Select(x => x.Path)); } };
-        AddShortcut(Windows.System.VirtualKey.L, true, () => _ = AddMusicAsync()); AddShortcut(Windows.System.VirtualKey.O, true, () => _ = ImportFilesAsync());
-        AddShortcut(Windows.System.VirtualKey.F, true, () => search.Focus(FocusState.Keyboard));
+        AddShortcut(Windows.System.VirtualKey.L, true, () => { SetPlayerView(PlayerViewMode.Library); _ = AddMusicAsync(); }); AddShortcut(Windows.System.VirtualKey.O, true, () => _ = ImportFilesAsync());
+        AddShortcut(Windows.System.VirtualKey.F, true, () => { SetPlayerView(PlayerViewMode.Library); search.Focus(FocusState.Keyboard); });
         AddShortcut(Windows.System.VirtualKey.Right, true, () => _ = SkipAsync(1)); AddShortcut(Windows.System.VirtualKey.Left, true, () => _ = SkipAsync(-1));
         AddShortcut(Windows.System.VirtualKey.F11, false, ToggleFullscreen);
+        AddShortcut(Windows.System.VirtualKey.M, true, () => SetPlayerView(PlayerViewMode.Mini));
     }
     private Grid BuildPlayer()
     {
@@ -132,16 +139,19 @@ public sealed partial class MainWindow : Window
         var transport = Ui.Stack(2, Orientation.Horizontal); transport.HorizontalAlignment = HorizontalAlignment.Center;
         shuffleButton = Ui.Icon("\uE8B1", "随机播放 · 每轮不重复", () => { CancelGap(); shuffled = !shuffled; shuffle.Reset(); UpdatePlayer(); RefreshPanel(); });
         playButton = Ui.Icon("\uE768", "播放 / 暂停", () => _ = TogglePlayAsync(), 28);
-        foreach (var item in new[] { shuffleButton, Ui.Icon("\uE892", "上一首", () => _ = SkipAsync(-1), 25), playButton, Ui.Icon("\uE893", "下一首", () => _ = SkipAsync(1), 25), Ui.Icon("\uE8EE", "循环播放列表", () => { repeat = !repeat; Toast(repeat ? "循环播放已开启" : "循环播放已关闭"); }, 20) }) transport.Children.Add(item);
+        repeatButton = Ui.Icon("repeat", "循环：关闭", CycleRepeat, 20);
+        foreach (var item in new[] { shuffleButton, Ui.Icon("\uE892", "上一首", () => _ = SkipAsync(-1), 25), playButton, Ui.Icon("\uE893", "下一首", () => _ = SkipAsync(1), 25), repeatButton }) transport.Children.Add(item);
         bar.Children.Add(transport);
         var playing = new Grid { Background = Ui.Brush(150, 60, 60, 63), CornerRadius = new(5), ColumnSpacing = 6 };
         playing.ColumnDefinitions.Add(new() { Width = new(52) }); playing.ColumnDefinitions.Add(new() { Width = new(1, GridUnitType.Star) });
-        playing.Children.Add(playerCover); var details = new Grid { Padding = new(2, 2, 5, 0) }; Grid.SetColumn(details, 1); playing.Children.Add(details);
+        var coverButton = new Button { Name = "OpenMiniPlayer", Content = playerCover, Padding = new(0), BorderThickness = new(0), CornerRadius = new(5), Width = 52, Height = 52, Background = Ui.Brush(0, 0, 0, 0) };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(coverButton, "打开小窗播放器"); ToolTipService.SetToolTip(coverButton, "小窗播放 · Ctrl+M"); coverButton.Click += (_, _) => SetPlayerView(PlayerViewMode.Mini); captionControls.Add(coverButton);
+        playing.Children.Add(coverButton); var details = new Grid { Padding = new(2, 2, 5, 0) }; Grid.SetColumn(details, 1); playing.Children.Add(details);
         details.RowDefinitions.Add(new() { Height = new(1, GridUnitType.Star) }); details.RowDefinitions.Add(new() { Height = new(0) }); details.RowDefinitions.Add(new() { Height = new(4) });
-        var titleRow = new Grid(); titleRow.ColumnDefinitions.Add(new() { Width = new(28) }); titleRow.ColumnDefinitions.Add(new() { Width = new(1, GridUnitType.Star) }); titleRow.ColumnDefinitions.Add(new() { Width = new(28) });
-        var quality = Ui.Icon("lossless", "音质与音频输出链路", () => _ = ShowOutputChainAsync(), 19); titleRow.Children.Add(quality);
+        var titleRow = new Grid(); titleRow.ColumnDefinitions.Add(new() { Width = GridLength.Auto }); titleRow.ColumnDefinitions.Add(new() { Width = new(1, GridUnitType.Star) }); titleRow.ColumnDefinitions.Add(new() { Width = new(28) });
+        var quality = qualityButton = Ui.Icon("lossless", "音质与音频输出链路", () => _ = ShowOutputChainAsync(), 15); quality.Name = "PlayerQuality"; quality.Padding = new(3); titleRow.Children.Add(quality);
         var labels = Ui.Stack(2); labels.HorizontalAlignment = HorizontalAlignment.Center; labels.VerticalAlignment = VerticalAlignment.Center; playerTitle.TextWrapping = playerArtist.TextWrapping = TextWrapping.NoWrap; playerTitle.TextTrimming = playerArtist.TextTrimming = TextTrimming.CharacterEllipsis;
-        var title = Ui.Stack(2, Orientation.Horizontal); title.HorizontalAlignment = HorizontalAlignment.Center; title.Children.Add(playerTitle); var menuButton = Ui.Icon("\uE712", "歌曲操作", PlayerMenu, 15); menuButton.Padding = new(3, 0, 3, 0); menuButton.Foreground = Ui.Accent; title.Children.Add(menuButton); labels.Children.Add(title); labels.Children.Add(playerArtist); Grid.SetColumn(labels, 1); titleRow.Children.Add(labels);
+        var title = Ui.Stack(2, Orientation.Horizontal); title.HorizontalAlignment = HorizontalAlignment.Center; title.Children.Add(playerTitle); var menuButton = Ui.MenuIcon("歌曲操作", PlayerMenu, 15); menuButton.Padding = new(3, 0, 3, 0); menuButton.Foreground = Ui.Accent; title.Children.Add(menuButton); labels.Children.Add(title); labels.Children.Add(playerArtist); Grid.SetColumn(labels, 1); titleRow.Children.Add(labels);
         favouriteButton = Ui.Icon("\uE734", "喜爱歌曲", ToggleCurrentFavourite, 12); Grid.SetColumn(favouriteButton, 2); titleRow.Children.Add(favouriteButton); details.Children.Add(titleRow);
         var times = new Grid { VerticalAlignment = VerticalAlignment.Bottom, Opacity = 0, IsHitTestVisible = false }; times.Children.Add(elapsed); remaining.HorizontalAlignment = HorizontalAlignment.Right; times.Children.Add(remaining); details.Children.Add(times);
         playing.PointerEntered += (_, _) => times.Opacity = 1; playing.PointerExited += (_, _) => times.Opacity = 0;
@@ -242,7 +252,6 @@ public sealed partial class MainWindow : Window
     private void UpdateDragRegions()
     {
         if (!AppWindowTitleBar.IsCustomizationSupported() || root.XamlRoot is null) return;
-        if (fullscreen) { AppWindow.TitleBar.SetDragRectangles([]); return; }
         root.UpdateLayout();
         var scale = root.XamlRoot.RasterizationScale;
         var areas = new List<Windows.Foundation.Rect> { new(0, 0, Math.Max(0, root.ActualWidth - AppWindow.TitleBar.RightInset / scale), 64) };

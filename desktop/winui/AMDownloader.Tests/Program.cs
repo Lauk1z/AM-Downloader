@@ -50,6 +50,7 @@ try
     Check(Formats.ValidateLinks("https://music.apple.com/cn/album/test/123\nhttps://music.apple.com/cn/album/test/123").Count == 1, "download link deduplication");
     var rejected = false; try { Formats.ValidateLinks("https://untrusted.test/song/123"); } catch (ArgumentException) { rejected = true; } Check(rejected, "download host validation");
     Check(new Track { Codec = "dsd", Bits = 1, Rate = 22579200 }.Quality.Contains("DSD512"), "DSD512 display");
-    Console.WriteLine($"PASS {count} assertions: state, queue, shuffle, gap, lyrics, M3U and formats");
+    await UpdateTests.RunAsync(root, Check);
+    Console.WriteLine($"PASS {count} assertions: state, queue, shuffle, gap, lyrics, M3U, formats and updates");
 }
 finally { Directory.Delete(root, true); }

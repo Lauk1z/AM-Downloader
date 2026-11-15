@@ -31,9 +31,10 @@ internal sealed partial class TrayIcon
             Check(opened.Surface.Background is SolidColorBrush background && background.Color == Windows.UI.Color.FromArgb(255, 43, 43, 43) && opened.Surface.CornerRadius.TopLeft == 8, "托盘菜单未采用深灰圆角外观");
             Check(opened.AppWindow.Presenter is OverlappedPresenter presenter && !presenter.HasTitleBar && !presenter.IsResizable, "托盘菜单显示了标题栏或可调整大小");
             var width = opened.Surface.ActualWidth; var height = opened.Surface.ActualHeight;
-            Check(width >= 318 && height is > 300 and < 380, "托盘菜单未形成紧凑布局");
+            Check(width is >= 238 and <= 242 && height is > 300 and < 380, "托盘菜单未形成收窄后的紧凑布局");
             await CaptureAsync(opened, "tray-menu-modern");
             var show = opened.Commands[0];
+            Check(FindFace(show)?.BackgroundTransition is null || FindFace(show)!.BackgroundTransition.Duration.TotalMilliseconds == 0, "托盘按钮带有背景渐退，快速悬停会留下多行高光拖尾");
             Check(new ButtonAutomationPeer(show).GetName() == "显示主窗口", "托盘菜单缺少无障碍名称");
             Check(opened.MoveFocus(VirtualKey.Down) && opened.Commands[4].FocusState != FocusState.Unfocused, "键盘导航没有跳过禁用的播放操作");
             Check(opened.MoveFocus(VirtualKey.End) && opened.Commands[^1].FocusState != FocusState.Unfocused, "键盘不能到达退出操作");
@@ -47,6 +48,22 @@ internal sealed partial class TrayIcon
                 Check(face?.Background is SolidColorBrush brush && brush.Color.R == red && face.CornerRadius.TopLeft == 4, $"托盘悬停背景或高光圆角错误：{state}, {((face?.Background as SolidColorBrush)?.Color)}, {face?.CornerRadius.TopLeft}, {string.Join(',', current)}");
             }
             VisualStateManager.GoToState(show, "Normal", false);
+            var hoverCommands = opened.Commands.Where(x => x.IsEnabled).ToList();
+            foreach (var target in hoverCommands)
+            {
+                foreach (var button in hoverCommands) VisualStateManager.GoToState(button, ReferenceEquals(button, target) ? "PointerOver" : "Normal", true);
+                await Task.Delay(20);
+                var bitmap = new RenderTargetBitmap(); await bitmap.RenderAsync(opened.Surface); var pixels = (await bitmap.GetPixelsAsync()).ToArray();
+                foreach (var button in hoverCommands)
+                {
+                    var point = button.TransformToVisual(opened.Surface).TransformPoint(new(button.ActualWidth - 20, button.ActualHeight / 2));
+                    var x = Math.Clamp((int)(point.X * bitmap.PixelWidth / opened.Surface.ActualWidth), 0, bitmap.PixelWidth - 1);
+                    var y = Math.Clamp((int)(point.Y * bitmap.PixelHeight / opened.Surface.ActualHeight), 0, bitmap.PixelHeight - 1);
+                    var red = pixels[(y * bitmap.PixelWidth + x) * 4 + 2];
+                    Check(Math.Abs(red - (ReferenceEquals(button, target) ? 61 : 43)) <= 3, "快速移动后旧菜单行仍有高光拖尾");
+                }
+            }
+            foreach (var button in hoverCommands) VisualStateManager.GoToState(button, "Normal", false);
             var work = DisplayArea.GetFromWindowId(opened.AppWindow.Id, DisplayAreaFallback.Nearest).WorkArea;
             foreach (var anchor in new[] { new PointInt32(work.X, work.Y), new(work.X + work.Width - 1, work.Y + work.Height - 1) })
             {
@@ -89,7 +106,7 @@ internal sealed partial class TrayIcon
                 ((IInvokeProvider)new ButtonAutomationPeer(button).GetPattern(PatternInterface.Invoke)).Invoke();
                 await Task.Delay(40); Check(called.LastOrDefault() == command, "菜单操作未正确分发：" + command); sample = null;
             }
-            return new { tray = "winui-dark-rounded-menu,compact-layout,hover,pressed,disabled,keyboard,escape,deactivation-dismiss,nonactivating-outside-press,inside-press-preserved,observer-cleanup,idempotent-close,hidden-owner,work-area,all-commands,accessible-labels", outside_input = "registered native hook; screen-coordinate callbacks without desktop input injection", width, height, ok = true };
+            return new { tray = "winui-dark-rounded-menu,240dip-width,no-hover-trails,hover,pressed,disabled,keyboard,escape,deactivation-dismiss,nonactivating-outside-press,inside-press-preserved,observer-cleanup,idempotent-close,hidden-owner,work-area,all-commands,accessible-labels", outside_input = "registered native hook; screen-coordinate callbacks without desktop input injection", width, height, ok = true };
         }
         finally { sample?.Close(); menu?.Close(); (playing, canPlay, canSkip) = saved; if (visible) { owner.Show(); SetForegroundWindow(window); } }
         static void Check(bool value, string message) { if (!value) throw new InvalidOperationException(message); }

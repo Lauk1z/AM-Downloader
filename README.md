@@ -8,7 +8,7 @@
 <p align="center">原生 WinUI 3 · Windows x64 · WASAPI / ASIO · 原生 DSD / DoP · CUE / SACD ISO</p>
 
 <p align="center">
-  <a href="https://github.com/Lauk1z/AM-Downloader/releases/tag/v2.0.0-preview.5">下载 WinUI 3 预览版</a> ·
+  <a href="https://github.com/Lauk1z/AM-Downloader/releases/tag/v2.0.0-preview.6">下载 WinUI 3 预览版</a> ·
   <a href="https://github.com/Lauk1z/AM-Downloader/releases/tag/v1.5.2">1.5.2 稳定版</a> ·
   <a href="#界面预览">界面预览</a> ·
   <a href="#播放与解码规格">播放规格</a> ·
@@ -22,7 +22,7 @@ AM Downloader 是一款面向 Windows 的音乐下载、本地播放与资料库
 
 也可以只把它作为本地播放器使用：导入文件或整个文件夹，浏览不同版本的专辑，无需登录 Apple 账号。
 
-**当前 WinUI 预览版：2.0.0-preview.5；稳定版：1.5.2。**新版运行入口是 `AM Downloader WinUI.exe`，界面名称沿用 `AM Dowloader`。本次加入当前播放歌曲标记和桌面 Acrylic 毛玻璃，修复顶部拖动、导航选中高亮与分组对齐，并精修 17 个界面图标；继续提供安装版 EXE，详见 [更新说明](docs/releases/v2.0.0-preview.5.md)。真实 Apple 账号、DAC 独占播放和部分编码样本仍需实机验收；不把旧 Qt 版的硬件测试当作新版测试结果。项目由独立开发者维护，与 Apple Inc. 无隶属、合作或背书关系。
+**当前 WinUI 预览版：2.0.0-preview.6；稳定版：1.5.2。**新版运行入口是 `AM Downloader WinUI.exe`，界面名称沿用 `AM Dowloader`。本次加入独立小窗／全屏播放器与软件内更新，修复播放窗口拖动、边框和动画，统一无损图标、下载表格与滚动留白，并缩窄托盘菜单、消除悬停闪烁；详见 [更新说明](docs/releases/v2.0.0-preview.6.md)。真实 Apple 账号、DAC 独占播放和部分编码样本仍需实机验收；不把旧 Qt 版的硬件测试当作新版测试结果。项目由独立开发者维护，与 Apple Inc. 无隶属、合作或背书关系。
 
 ## 界面预览
 
@@ -40,11 +40,22 @@ AM Downloader 是一款面向 Windows 的音乐下载、本地播放与资料库
 
 ### 音频输出设置
 
-可选择系统共享、WASAPI 独占或 ASIO 输出，并设置设备及 DSD 播放方式。下图保留 **1.5.2 Qt 版**的输出设置供功能参考，不能代表新版控件外观；WinUI 版保留这些设置，新增驱动选择与失败回滚修复。原生 DSD / DoP 的可用能力取决于实际设备和驱动。
+可选择系统共享、WASAPI 独占或 ASIO 输出，并设置设备及 DSD 播放方式。下图为本版 WinUI 设置页，展示系统共享模式；原生 DSD / DoP 的可用能力取决于实际设备和驱动。
 
-![AM Downloader 音频输出设置：输出模式、设备、DSD 播放方式与应用设置](docs/screenshots/audio-output.png)
+![AM Downloader WinUI 音频输出设置：输出模式、设备、DSD 播放方式与应用设置](docs/screenshots/winui-audio-settings-preview6.png)
 
-前两张为此前 WinUI 3 预览版在独立测试资料库中的静态渲染，使用生成的封面和示例歌词，供布局参考；当前版本的系统 Acrylic 背景以实际运行效果为准。第三张为旧版实际界面。其中的第三方专辑封面与歌词版权归各自权利人所有。
+### 小窗与全屏播放
+
+单击顶部播放器封面进入独立小窗，主窗口自动最小化；点击右上角放大按钮进入全屏，关闭播放窗口则回到主界面。两种模式共用播放状态，并使用专辑封面模糊背景。
+
+<p>
+  <img src="docs/screenshots/winui-mini-preview6.png" width="356" alt="紧凑小窗：封面、歌曲、进度和播放控制" />
+  <img src="docs/screenshots/winui-mini-lyrics-preview6.png" width="356" alt="小窗向下展开滚动歌词" />
+</p>
+
+![全屏播放器：左侧封面与控制、右侧滚动歌词](docs/screenshots/winui-fullscreen-preview6.png)
+
+以上为独立测试资料库中的原生 WinUI 静态捕获，使用生成的封面、静音音频和示例歌词，供布局参考；歌词侧栏截图沿用此前预览版，其余为 preview.6。系统 Acrylic 背景与 Composition 渐隐、浮动效果以实际运行效果为准。
 
 ## 主要功能
 
@@ -61,23 +72,31 @@ AM Downloader 是一款面向 Windows 的音乐下载、本地播放与资料库
 | 歌词 | 本地／增强 LRC、上下渐隐、平滑滚动和点击跳转；可选浮动、逐字高亮、普通整句高亮三种模式，普通 LRC 的逐字进度按句内时间估算 |
 | 播放队列 | 独立的「正在播放」侧栏，支持下一首播放、最后播放、排序、移除及重启恢复 |
 | 播放状态 | 当前曲目显示玫瑰红歌名与播放／暂停标记，切歌、切页和滚动后同步更新，保留用户的多选状态 |
-| 播放方式 | 顺序、循环和每轮不重复的洗牌随机；自动切歌前留出 2 秒间隔，手动切歌立即响应 |
+| 播放方式 | 顺序、单曲循环、全部循环和每轮不重复的洗牌随机；自动接续前留出 2 秒间隔，手动切歌立即响应 |
+| 小窗／全屏 | 单击顶部封面或 Ctrl+M 进入独立小窗，歌词／队列向下展开；放大按钮或 F11 进入全屏，关闭后回到主界面且继续播放 |
+| 软件更新 | 设置中手动或自动检查新版，展示更新说明，确认后下载、校验并重启；自动发现新版时在设置旁显示玫瑰红下载提示 |
 | 输出链路 | 查看源格式、解码或 DSD 传输方式、接口、设备、音量处理与实际协商状态 |
 | 托盘与单实例 | 深灰圆角托盘菜单，点击外部自动收起；托盘中继续播放和下载；重复启动唤回原窗口；关闭时可选择收起或退出，并记住选择 |
-| 界面 | 桌面 Acrylic 毛玻璃、左右透明度分层、透明导航高亮、顶部文字／封面拖动、平滑滚动与页面过渡、圆润矢量图标 |
+| 界面 | 主窗口使用桌面 Acrylic，播放窗口使用封面模糊背景；左右透明度分层、透明导航高亮、顶部文字／空白区域拖动、平滑滚动与页面过渡、圆润矢量图标 |
 
 重新启动会恢复上次的队列与最后歌曲，**不会自动开始播放**。当前没有无缝播放或交叉淡化。
 
 ## 下载与开始使用
 
-在 [2.0.0-preview.5 Release](https://github.com/Lauk1z/AM-Downloader/releases/tag/v2.0.0-preview.5) 下载 `AM-Downloader-2.0.0-preview.5-WinUI3-Windows-x64-Setup.exe` 安装版，或选择同版本便携 ZIP，完整解压后运行 `AM Downloader WinUI.exe`。源码归档不能直接运行。升级前请在托盘菜单选择「退出」。
+在 [2.0.0-preview.6 Release](https://github.com/Lauk1z/AM-Downloader/releases/tag/v2.0.0-preview.6) 下载 `AM-Downloader-2.0.0-preview.6-WinUI3-Windows-x64-Setup.exe` 安装版，或选择同版本便携 ZIP，完整解压后运行 `AM Downloader WinUI.exe`。源码归档不能直接运行。手动升级前请在托盘菜单选择「退出」。
 
 - Windows 10 2004（19041）及更新版本，x64。包内带 .NET 和 Windows App SDK 运行时，无需另装 Python、.NET SDK、QEMU 或 foobar2000 插件；ASIO 需自行安装 DAC 对应的 64 位驱动。
 - 安装版约 **374 MiB**，默认安装到当前用户的 `%LOCALAPPDATA%\Programs\AM Downloader`，支持选择目录、开始菜单／可选桌面快捷方式及卸载。卸载保留个人资料库和音乐，安装器尚未进行代码签名。
-- 便携版保留整个解压目录及其子目录，不能只复制 EXE。ZIP **463,870,783 字节（约 442 MiB）**，解压约 **842 MiB**；账号镜像、音乐和播放缓存另占空间。
+- 便携版保留整个解压目录及其子目录，不能只复制 EXE。ZIP **464,157,288 字节（约 443 MiB）**，解压约 **843 MiB**；账号镜像、音乐和播放缓存另占空间。
 - 后端可使用已启用且可用的 Windows Hypervisor Platform 加速；不可用时采用兼容方式，不自行开启 Windows 功能。首次初始化需要额外时间与磁盘空间。
 - 发布页提供 `SHA256SUMS.txt`；包内 `manifest.sha256.json` 可核对全部文件。
 - 1.5.2 稳定版仍可单独下载，入口为 `AM Dowloader.exe`，其 `_internal` 等目录不能与 WinUI 包混用。
+
+### 软件内更新
+
+从 preview.5 或更早版本升级到本版，需先手动下载安装包或完整 ZIP。**preview.6 起**可在「设置 → 软件更新」检查后续版本，确认更新说明后下载、校验并自动重启。默认启用自动检查，仅在设置旁显示下载提醒；可在设置中关闭，不会未经确认安装。
+
+预览版检查更高版本的预览版及正式版，正式版渠道跳过预览版，不执行降级。更新要求完整运行目录、文件清单及可写安装位置；更新器备份程序文件并等待新版本启动确认，启动失败时回滚。个人资料库和账号设置保留。
 
 ### 从 1.5.2 迁移
 

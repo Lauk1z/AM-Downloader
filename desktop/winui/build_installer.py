@@ -23,6 +23,9 @@ def main():
     if not version:
         parser.error("Use a numeric preview version, such as 2.0.0-preview.3")
     package = args.package.resolve(strict=True)
+    metadata = package / "app-version.json"
+    if metadata.exists() and json.loads(metadata.read_text(encoding="utf-8"))["version"] != args.version:
+        raise ValueError("Installer version must match the packaged application version")
     manifest = json.loads((package / "manifest.sha256.json").read_text(encoding="utf-8"))
     actual = {p.relative_to(package).as_posix() for p in package.rglob("*") if p.is_file()}
     if actual != set(manifest) | {"manifest.sha256.json"}:

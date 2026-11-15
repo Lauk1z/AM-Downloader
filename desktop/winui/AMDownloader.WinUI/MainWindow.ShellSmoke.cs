@@ -20,7 +20,7 @@ public sealed partial class MainWindow
             foreach (var width in new[] { 1100, 1440 })
             {
                 AppWindow.Resize(new((int)(width * root.XamlRoot.RasterizationScale), size.Height)); await Task.Delay(180); UpdateDragRegions();
-                Check(HitTest(new(90, 25)) == 2 && HitTest(Centre(playerCover)) == 2 && HitTest(Centre(playerTitle)) == 2 && HitTest(Centre(playerArtist)) == 2, "顶部文字或封面仍不能拖动窗口");
+                Check(HitTest(new(90, 25)) == 2 && HitTest(Centre(playerCover)) == 1 && HitTest(Centre(playerTitle)) == 2 && HitTest(Centre(playerArtist)) == 2, "顶部文字拖动或封面点击区域错误");
                 foreach (var button in captionControls.OfType<Button>().Where(x => x == playButton || x.Parent == playerActions))
                     Check(HitTest(Centre(button)) == 1, "顶部按钮被拖动区域遮挡");
                 ShowVolume(); await Task.Delay(80); UpdateDragRegions(); Check(HitTest(Centre(volumeSlider)) == 1, "音量滑块不能接收鼠标操作");
@@ -60,7 +60,7 @@ public sealed partial class MainWindow
             foreach (var offset in new[] { scrolling.ScrollableHeight, 0d }) { scrolling.ChangeView(null, offset, null, true); await Task.Delay(120); root.UpdateLayout(); CheckRows(); }
             await Audio.LoadAsync(null, false); await Task.Delay(80); Check(pageTrackRows.All(x => !x.IsCurrent), "停止并清空歌曲后播放标记未清除");
             Check(ReferenceEquals(material, SystemBackdrop) && !root.Children.OfType<Image>().Any(), "换歌后桌面材质被封面替换");
-            return new { shell = "caption-text-and-cover,interactive-controls,volume-toggle,sidebar-heading-alignment,desktop-acrylic", widths, playback = "live-start,pause,track-change,selection-preserved,favourite-restored,page-navigation,recycling,clear", pages, backdropCapture = "system material verified by live Window.SystemBackdrop; XAML snapshots exclude the OS backdrop", ok = true };
+            return new { shell = "caption-text,clickable-cover,interactive-controls,volume-toggle,sidebar-heading-alignment,desktop-acrylic", widths, playback = "live-start,pause,track-change,selection-preserved,favourite-restored,page-navigation,recycling,clear", pages, backdropCapture = "system material verified by live Window.SystemBackdrop; XAML snapshots exclude the OS backdrop", ok = true };
         }
         finally { HideVolume(); AppWindow.Resize(size); favourites = savedFavourites; selectedArtist = savedArtist; await Audio.LoadAsync(savedTrack, false); Navigate(savedPage); UpdateDragRegions(); }
         void Check(bool value, string message) { if (!value) throw new InvalidOperationException(message); }

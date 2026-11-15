@@ -38,8 +38,9 @@ public sealed partial class MainWindow
         var close = Ui.Combo(new[] { ("每次询问", (object)"ask"), ("最小化到托盘", "tray"), ("关闭程序", "exit") }, Store.Get("close_action", "ask")); close.SelectionChanged += (_, _) => Store.Set("close_action", Ui.Selected<string>(close)); Row("关闭主窗口时", close);
         var lyrics = Ui.Combo(new[] { ("浮动（逐字高亮并浮起）", (object)"floating"), ("逐字高亮（不浮动）", "word"), ("普通（整句高亮）", "line") }, LyricsMode); lyrics.Name = "LyricsMode";
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(lyrics, "歌词显示模式");
-        lyrics.SelectionChanged += (_, _) => { var mode = Ui.Selected<string>(lyrics); Store.Set("lyrics_mode", mode); foreach (var view in lyricViews) view.SetMode(mode); };
+        lyrics.SelectionChanged += (_, _) => { var mode = Ui.Selected<string>(lyrics); Store.Set("lyrics_mode", mode); foreach (var view in lyricViews) view.SetMode(mode); playerWindow?.RefreshLyrics(); };
         Row("歌词显示模式", lyrics);
+        stack.Children.Add(BuildUpdateSettings());
         stack.Children.Add(Ui.Text("音频输出", 23, true));
         var mode = Ui.Combo(new[] { ("系统共享（兼容模式）", (object)"shared"), ("WASAPI 独占", "wasapi"), ("ASIO（支持原生 DSD）", "asio") }, Audio.Config.Mode);
         var devices = new SafeComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, PlaceholderText = "请选择 DAC 对应的输出设备" }; var dsd = new SafeComboBox { HorizontalAlignment = HorizontalAlignment.Stretch }; var note = Ui.Text("正在读取输出设备…", 12, color: Ui.Muted);
@@ -97,10 +98,11 @@ public sealed partial class MainWindow
             var path = Path.GetFullPath(Path.Combine(Store.DirectoryPath, "audio-cache")); if (Path.GetDirectoryName(path) != Path.GetFullPath(Store.DirectoryPath)) throw new InvalidOperationException("缓存目录校验失败。");
             if (Directory.Exists(path)) await Task.Run(() => Directory.Delete(path, true)); Toast("播放缓存已清理");
         })));
-        stack.Children.Add(Ui.Text("AM Dowloader · WinUI 3\n基于 AppleMusicDecrypt 的桌面应用", 12, color: Ui.Muted));
-        return PageFrame("设置", "下载歌曲，按你的习惯管理音乐。", Ui.Scroll(stack));
+        stack.Children.Add(Ui.Text("AM Dowloader · WinUI 3 · " + ReleaseVersion.Current + "\n基于 AppleMusicDecrypt 的桌面应用", 12, color: Ui.Muted));
+        var settingsScroll = Ui.Scroll(new Border { Child = stack, Padding = new(32, 0, 32, 24), Name = "SettingsInset" }); settingsScroll.Name = "SettingsScroll";
+        return PageFrame("设置", "下载歌曲，按你的习惯管理音乐。", settingsScroll, edgeScroll: true);
     }
-    private readonly Dictionary<string, (TextBlock Title, TextBlock Quality, TextBlock State, TextBlock Progress, Button Action)> downloadRows = [];
+    private readonly Dictionary<string, (TextBlock Title, TextBlock Quality, TextBlock State, TextBlock Progress, Button Action, Action Refresh)> downloadRows = [];
     private TextBlock? downloadSummary, downloadSpeeds;
     private TextBox? downloadLog;
     private Button? pauseDownloads;
@@ -112,29 +114,35 @@ public sealed partial class MainWindow
         actions.Children.Add(Ui.Button("清理已完成", () => { jobs.RemoveAll(x => x.State == "DONE"); Store.Set("jobs", jobs); RenderPage(); }));
         var stack = new Grid { RowSpacing = 16 }; foreach (var height in new[] { GridLength.Auto, new(1, GridUnitType.Star), GridLength.Auto, new(150) }) stack.RowDefinitions.Add(new() { Height = height });
         downloadSummary = Ui.Text("", 15, color: Ui.Muted); stack.Children.Add(downloadSummary);
-        var list = Ui.Stack(4);
-        var header = DownloadRow(); var headers = new[] { "曲目／链接", "音质", "状态", "进度", "操作" };
-        for (var i = 0; i < headers.Length; i++) { var text = Ui.Text(headers[i], 13, color: Ui.Muted); Grid.SetColumn(text, i); header.Children.Add(text); } list.Children.Add(header);
-        foreach (var job in jobs)
+        var list = Ui.Stack(0); list.Margin = new(16, 0, 12, 0);
+        var header = DownloadRow(); header.Name = "DownloadHeader"; header.MinHeight = 0; header.Padding = new(26, 12, 22, 12); header.Background = Ui.Brush(75, 15, 15, 17); var headers = new[] { "曲目／链接", "音质", "状态", "进度", "操作" };
+        for (var i = 0; i < headers.Length; i++) { var text = Ui.Text(headers[i], 13, color: Ui.Muted); Grid.SetColumn(text, i); header.Children.Add(text); }
+        var clearBrush = Ui.Brush(0, 0, 0, 0); var stripe = Ui.Brush(65, 65, 63, 70); var failed = Ui.Brush(110, 124, 65, 85); var hover = Ui.Brush(24, 255, 255, 255);
+        foreach (var (job, index) in jobs.Select((job, index) => (job, index)))
         {
-            var row = DownloadRow(); row.CornerRadius = new(7); row.Background = job.State == "FAILED" ? Ui.Brush(110, 124, 65, 85) : Ui.Brush(60, 63, 62, 69);
-            var title = Ui.Text(job.Caption); title.MaxLines = 2; var quality = Ui.Text(job.QualityText); var state = Ui.Text(job.StateText); var progress = Ui.Text(job.ProgressText); var action = Ui.Button(job.State is "FAILED" or "cancelled" ? "重试" : "取消", () => _ = JobActionAsync(job)); action.IsEnabled = job.State != "DONE";
+            var row = DownloadRow(); row.Name = "DownloadItem"; row.Tag = job; row.CornerRadius = new(7); row.BackgroundTransition = new BrushTransition { Duration = TimeSpan.FromMilliseconds(83) }; var over = false;
+            void RefreshRow() => row.Background = over ? hover : job.State == "FAILED" ? failed : index % 2 == 0 ? stripe : clearBrush;
+            row.PointerEntered += (_, _) => { over = true; RefreshRow(); }; row.PointerExited += (_, _) => { over = false; RefreshRow(); }; RefreshRow();
+            var title = Ui.Text(job.Caption); title.MaxLines = 2; var quality = Ui.Text(job.QualityText); quality.MaxLines = 2; var state = Ui.Text(job.StateText); var progress = Ui.Text(job.ProgressText); var action = Ui.Button(job.State is "FAILED" or "cancelled" ? "重试" : "取消", () => _ = JobActionAsync(job)); action.IsEnabled = job.State != "DONE";
+            action.Height = 28; action.MinHeight = 0; action.MinWidth = 0; action.Padding = new(10, 3, 10, 3); action.FontSize = 13;
             var controls = new FrameworkElement[] { title, quality, state, progress, action }; for (var i = 0; i < controls.Length; i++) { Grid.SetColumn(controls[i], i); row.Children.Add(controls[i]); }
-            Ui.AddMenu(row, () => { var menu = new MenuFlyout(); menu.Items.Add(Ui.MenuItem("从队列删除", () => _ = JobActionAsync(job, true))); return menu; }); ToolTipService.SetToolTip(row, job.Error.Length > 0 ? job.Error : job.Url); list.Children.Add(row); downloadRows[job.Id] = (title, quality, state, progress, action);
+            Ui.AddMenu(row, () => { var menu = new MenuFlyout(); menu.Items.Add(Ui.MenuItem("从队列删除", () => _ = JobActionAsync(job, true))); return menu; }); ToolTipService.SetToolTip(row, job.Error.Length > 0 ? job.Error : job.Url); list.Children.Add(row); downloadRows[job.Id] = (title, quality, state, progress, action, RefreshRow);
         }
-        var border = new Border { Child = Ui.Scroll(list), CornerRadius = new(10), Background = Ui.Brush(55, 13, 13, 15) }; Grid.SetRow(border, 1); stack.Children.Add(border);
+        var table = new Grid { CornerRadius = new(10), Name = "DownloadTable" }; table.RowDefinitions.Add(new() { Height = GridLength.Auto }); table.RowDefinitions.Add(new() { Height = new(1, GridUnitType.Star) }); table.Children.Add(header);
+        var scroll = Ui.Scroll(list); scroll.Name = "DownloadScroll"; Grid.SetRow(scroll, 1); table.Children.Add(scroll);
+        var border = new Border { Child = table, CornerRadius = new(10), Background = Ui.Brush(55, 13, 13, 15) }; Grid.SetRow(border, 1); stack.Children.Add(border);
         var status = new Grid(); downloadSpeeds = Ui.Text(speeds, 13, color: Ui.Muted); status.Children.Add(downloadSpeeds); var export = Ui.Button("导出诊断日志", () => _ = Guard(async () => { var picker = InitPicker(new FileSavePicker { SuggestedFileName = "wrapper-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") }); picker.FileTypeChoices.Add("文本日志", new List<string> { ".txt" }); var file = await picker.PickSaveFileAsync(); if (file is not null) await SendAsync(new { action = "export", path = file.Path }); }), icon: "download"); export.HorizontalAlignment = HorizontalAlignment.Right; status.Children.Add(export); Grid.SetRow(status, 2); stack.Children.Add(status);
         downloadLog = new TextBox { Text = logs, IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, FontFamily = new("Consolas"), FontSize = 12, CornerRadius = new(7) }; ScrollViewer.SetVerticalScrollBarVisibility(downloadLog, ScrollBarVisibility.Auto); Grid.SetRow(downloadLog, 3); stack.Children.Add(downloadLog); UpdateDownloadView();
         return PageFrame("下载队列", "", stack, actions);
     }
     private static Grid DownloadRow()
-    { var row = new Grid { Padding = new(10), ColumnSpacing = 12, MinHeight = 48 }; foreach (var width in new[] { new GridLength(6, GridUnitType.Star), new(1.5, GridUnitType.Star), new(1, GridUnitType.Star), new(.8, GridUnitType.Star), new(70) }) row.ColumnDefinitions.Add(new() { Width = width }); return row; }
+    { var row = new Grid { Padding = new(10, 12, 10, 12), ColumnSpacing = 12, MinHeight = 52 }; foreach (var width in new[] { new GridLength(6, GridUnitType.Star), new(1.5, GridUnitType.Star), new(1, GridUnitType.Star), new(.8, GridUnitType.Star), new(70) }) row.ColumnDefinitions.Add(new() { Width = width }); return row; }
     private void UpdateDownloadView(bool structure = false)
     {
         if (page != "queue") return; if (structure) { RenderPage(); return; }
         if (downloadSummary is not null) downloadSummary.Text = $"{jobs.Count} 个任务 · {jobs.Count(x => x.State == "DONE")} 个已完成" + (queuePaused ? " · 队列已暂停，当前任务会继续完成" : "");
         if (pauseDownloads is not null) Ui.SetButtonContent(pauseDownloads, queuePaused ? "继续队列" : "暂停队列", queuePaused ? "play" : "pause");
-        foreach (var job in jobs) if (downloadRows.TryGetValue(job.Id, out var row)) { row.Title.Text = job.Caption; row.Quality.Text = job.QualityText; row.State.Text = job.StateText; row.Progress.Text = job.ProgressText; row.Action.Content = job.State is "FAILED" or "cancelled" ? "重试" : "取消"; row.Action.IsEnabled = job.State != "DONE"; }
+        foreach (var job in jobs) if (downloadRows.TryGetValue(job.Id, out var row)) { row.Title.Text = job.Caption; row.Quality.Text = job.QualityText; row.State.Text = job.StateText; row.Progress.Text = job.ProgressText; row.Action.Content = job.State is "FAILED" or "cancelled" ? "重试" : "取消"; row.Action.IsEnabled = job.State != "DONE"; row.Refresh(); }
         if (downloadSpeeds is not null) downloadSpeeds.Text = speeds;
         if (downloadLog is not null && downloadLog.Text != logs) { downloadLog.Text = logs; downloadLog.SelectionStart = logs.Length; }
     }

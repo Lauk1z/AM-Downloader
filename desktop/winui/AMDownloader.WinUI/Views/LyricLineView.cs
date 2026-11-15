@@ -25,13 +25,14 @@ internal sealed class LyricLineView : Grid
     private long position, end;
     private bool playing;
     private string mode;
+    private readonly double fontSize;
     internal List<Rect> GlyphBounds { get; } = [];
     internal bool IsActive => timing is not null;
 
-    public LyricLineView(string content, string mode)
+    public LyricLineView(string content, string mode, double fontSize = 23)
     {
-        this.mode = mode;
-        text = Ui.Text("", 23, true); text.VerticalAlignment = VerticalAlignment.Top;
+        this.mode = mode; this.fontSize = fontSize;
+        text = Ui.Text("", fontSize, true); text.VerticalAlignment = VerticalAlignment.Top;
         run = new Run { Text = content }; text.Inlines.Add(run);
         source.Children.Add(text); Children.Add(source); Children.Add(ink);
         source.Opacity = .35;
@@ -74,7 +75,7 @@ internal sealed class LyricLineView : Grid
             var bounds = new Rect(left, head.Y, right - left, head.Height);
             GlyphBounds.Add(bounds);
             var piece = new Grid { Clip = new RectangleGeometry { Rect = bounds } };
-            var glyphText = Ui.Text(run.Text, 23, true); glyphText.Foreground = Ui.Brush(255, 255, 255, 255); glyphText.VerticalAlignment = VerticalAlignment.Top;
+            var glyphText = Ui.Text(run.Text, fontSize, true); glyphText.Foreground = Ui.Brush(255, 255, 255, 255); glyphText.VerticalAlignment = VerticalAlignment.Top;
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAccessibilityView(glyphText, Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw);
             piece.Children.Add(glyphText); ink.Children.Add(piece);
             var amount = "Clamp((clock.Position - start) / span, 0, 1)";

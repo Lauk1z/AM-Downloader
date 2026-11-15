@@ -2,6 +2,7 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using AMDownloader.WinUI.Services;
+using AMDownloader.Core;
 
 namespace AMDownloader.WinUI;
 
@@ -11,6 +12,7 @@ internal static class Program
     public static void Main(string[] args)
     {
         var options = LaunchOptions.Parse(args);
+        if (options.UpdateJob is null && UpdatePackage.InstallationBusy(AppContext.BaseDirectory)) return;
         using var instance = new SingleInstance(options.Profile);
         if (!instance.Acquire()) return;
         WinRT.ComWrappersSupport.InitializeComWrappers();
@@ -22,15 +24,16 @@ internal static class Program
         });
     }
 }
-public sealed record LaunchOptions(string Profile, string? Resources, bool NoBackend, string? Smoke)
+public sealed record LaunchOptions(string Profile, string? Resources, bool NoBackend, string? Smoke, string? UpdateJob = null)
 {
     public static LaunchOptions Parse(string[] args)
     {
         string? Value(string key) { var index = Array.IndexOf(args, key); return index >= 0 && index + 1 < args.Length ? args[index + 1] : null; }
         if (Value("--smoke-test") is not null && (Value("--data-dir") is null || !args.Contains("--no-backend")))
             throw new ArgumentException("自动验收必须指定隔离的 --data-dir，并使用 --no-backend。");
+        if (Value("--update-job") is { } job && !Guid.TryParseExact(job, "N", out _)) throw new ArgumentException("更新任务编号无效。");
         return new(Value("--data-dir") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MusicDesk"),
-            Value("--resources"), args.Contains("--no-backend"), Value("--smoke-test"));
+            Value("--resources"), args.Contains("--no-backend"), Value("--smoke-test"), Value("--update-job"));
     }
 }
 public sealed partial class App : Application
@@ -55,7 +58,7 @@ public sealed partial class App : Application
         {
             window = new MainWindow(options);
             instance.Activated += () => window.DispatcherQueue.TryEnqueue(window.Restore);
-            window.Activate(); _ = window.InitializeAsync();
+            window.Activate(); _ = StartWindowAsync();
         }
         catch (Exception error)
         {
@@ -63,5 +66,14 @@ public sealed partial class App : Application
             File.AppendAllText(Path.Combine(options.Profile, "winui-errors.log"), error + Environment.NewLine);
             Exit();
         }
+    }
+    private async Task StartWindowAsync()
+    {
+        try
+        {
+            if (options.UpdateJob is not null) { await window!.UiReady.WaitAsync(TimeSpan.FromSeconds(20)); UpdatePackage.SignalReady(options.UpdateJob, options.Profile, AppContext.BaseDirectory); }
+            await window!.InitializeAsync();
+        }
+        catch (Exception error) { File.AppendAllText(Path.Combine(options.Profile, "winui-errors.log"), error + Environment.NewLine); Exit(); }
     }
 }

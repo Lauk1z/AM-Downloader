@@ -75,7 +75,14 @@ public sealed partial class MainWindow
     {
         var menu = TrackMenu(album); var redundant = menu.Items.OfType<MenuFlyoutItem>().FirstOrDefault(x => x.Text == "前往专辑"); if (redundant is not null) menu.Items.Remove(redundant); return menu;
     }
-    private void PlayerMenu() { if (Audio.Current is { } track) TrackMenu([track]).ShowAt(playButton); }
+    private MenuFlyout PlayerMenu()
+    {
+        var menu = Audio.Current is { } track ? TrackMenu([track]) : new MenuFlyout();
+        if (menu.Items.Count > 0) menu.Items.Add(new MenuFlyoutSeparator());
+        menu.Items.Add(Ui.MenuItem("小窗播放 · Ctrl+M", () => SetPlayerView(PlayerViewMode.Mini)));
+        menu.Items.Add(Ui.MenuItem("全屏播放 · F11", () => SetPlayerView(PlayerViewMode.Fullscreen)));
+        return menu;
+    }
     private async Task RemoveTracksAsync(List<Track> selected, bool delete) => await Guard(async () =>
     {
         if (delete && selected.Any(x => x.Container.Length > 0)) return;

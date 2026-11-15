@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import sys
 import zipfile
+import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -70,6 +71,10 @@ def main():
     subprocess.run([sys.executable, str(ROOT / "winui/build_native.py")], check=True, env=environment)
     subprocess.run([args.dotnet, "publish", str(ROOT / "winui/AMDownloader.WinUI/AMDownloader.WinUI.csproj"),
         "--configuration", "Release", "--output", str(target), "--verbosity", "minimal"], check=True, env=environment)
+    subprocess.run([args.dotnet, "publish", str(ROOT / "winui/AMDownloader.Updater/AMDownloader.Updater.csproj"),
+        "--configuration", "Release", "--output", str(target), "--verbosity", "minimal"], check=True, env=environment)
+    version = ET.parse(ROOT / "winui/Directory.Build.props").findtext(".//Version")
+    (target / "app-version.json").write_text(json.dumps({"version": version, "updater_protocol": 1}, indent=2), encoding="utf-8")
     stage_backend(args.backend, target / "vendor/backend")
     for name in ("musicdesk_worker.py", "musicdesk_backend.py", "musicdesk_boot.py", "LICENSE.txt"):
         shutil.copy2(ROOT / name, target / name)

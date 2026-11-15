@@ -63,7 +63,7 @@ public sealed partial class MainWindow
         var content = Ui.Stack(5); content.Width = size; var cover = Ui.Cover(track.Cover, size, 9); content.Children.Add(cover);
         var title = Ui.Text(track.Album, featured ? 19 : 14, featured); title.MaxLines = 2; title.TextTrimming = TextTrimming.CharacterEllipsis; content.Children.Add(title);
         var artist = Ui.Text(track.DisplayArtist, featured ? 15 : 13, color: Ui.Muted); artist.MaxLines = 1; artist.TextTrimming = TextTrimming.CharacterEllipsis; content.Children.Add(artist);
-        var button = new Button { Content = content, Background = Ui.Brush(0, 0, 0, 0), BorderThickness = new(0), Padding = new(0), CornerRadius = new(10) };
+        var button = new Button { Name = "AlbumCard", Content = content, Background = Ui.Brush(0, 0, 0, 0), BorderThickness = new(0), Padding = new(0, 0, 0, 10), CornerRadius = new(10), VerticalAlignment = VerticalAlignment.Top };
         button.Click += (_, _) => Navigate("album:" + track.AlbumKey); Ui.AddMenu(button, () => AlbumMenu(tracks.Where(x => x.AlbumKey == track.AlbumKey).ToList())); return button;
     }
     private Button FeaturedCard(Track track, double size)
@@ -135,7 +135,7 @@ public sealed partial class MainWindow
         if (groups.Count == 0) return PageFrame("艺人", Counts(visible), EmptyState(tracks.Count > 0 ? "还没有匹配的音乐" : "把喜爱的音乐留在这里"), filtering: FilterBar());
         if (groups.All(x => x.Key != selectedArtist)) { selectedArtist = groups[0].Key; artistDetailOffset = 0; }
         var split = new Grid(); split.ColumnDefinitions.Add(new() { Width = new(205) }); split.ColumnDefinitions.Add(new() { Width = new(1) }); split.ColumnDefinitions.Add(new() { Width = new(1, GridUnitType.Star) });
-        var artists = new ListView { SelectionMode = ListViewSelectionMode.Single, Background = Ui.Brush(0, 0, 0, 0) };
+        var artists = new ListView { Name = "ArtistsList", SelectionMode = ListViewSelectionMode.Single, Background = Ui.Brush(0, 0, 0, 0), HorizontalContentAlignment = HorizontalAlignment.Stretch };
         ScrollViewer? FindScroll(DependencyObject node)
         {
             if (node is ScrollViewer found) return found;
@@ -143,7 +143,6 @@ public sealed partial class MainWindow
             return null;
         }
         artists.Loaded += (_, _) => { if (FindScroll(artists) is { } scroll) { scroll.ChangeView(null, artistListOffset, null, true); scroll.ViewChanged += (_, _) => artistListOffset = scroll.VerticalOffset; } };
-        artists.Margin = new(0, 0, 10, 0);
         var divider = new Border { Background = Ui.Brush(255, 53, 53, 56) }; Grid.SetColumn(divider, 1); split.Children.Add(divider);
         var details = new ContentControl { Name = "ArtistDetails", HorizontalContentAlignment = HorizontalAlignment.Stretch, VerticalContentAlignment = VerticalAlignment.Stretch, Margin = new(26, 0, 4, 0) }; Grid.SetColumn(details, 2); split.Children.Add(artists); split.Children.Add(details);
         var sections = new List<(Grid Section, Border Image, FrameworkElement Right)>();
@@ -163,8 +162,9 @@ public sealed partial class MainWindow
         }
         foreach (var group in groups)
         {
-            var row = Ui.Stack(10, Orientation.Horizontal); row.Children.Add(Ui.Cover(group.First().Cover, 34, 17)); var label = Ui.Text(group.Key); label.MaxWidth = 135; label.MaxLines = 1; label.TextTrimming = TextTrimming.CharacterEllipsis; row.Children.Add(label);
-            artists.Items.Add(new ListViewItem { Content = row, Tag = group.Key, Padding = new(8), CornerRadius = new(6) });
+            var row = new Grid { ColumnSpacing = 10 }; row.ColumnDefinitions.Add(new() { Width = new(34) }); row.ColumnDefinitions.Add(new() { Width = new(1, GridUnitType.Star) }); row.Children.Add(Ui.Cover(group.First().Cover, 34, 17));
+            var label = Ui.Text(group.Key); label.MaxLines = 1; label.TextWrapping = TextWrapping.NoWrap; label.TextTrimming = TextTrimming.CharacterEllipsis; Grid.SetColumn(label, 1); row.Children.Add(label);
+            artists.Items.Add(new ListViewItem { Content = row, Tag = group.Key, Padding = new(8), Margin = new(0, 0, 18, 0), CornerRadius = new(6), HorizontalContentAlignment = HorizontalAlignment.Stretch });
         }
         void Select()
         {
@@ -198,7 +198,7 @@ public sealed partial class MainWindow
                 }
                 Ui.AddMenu(section, () => AlbumMenu(items)); Grid.SetColumn(right, 1); section.Children.Add(right); content.Children.Add(section); sections.Add((section, image, right));
             }
-            Resize(); var scroll = Ui.Scroll(content); scroll.Loaded += (_, _) => scroll.ChangeView(null, artistDetailOffset, null, true);
+            Resize(); var scroll = Ui.Scroll(new Border { Child = content, Padding = new(0, 0, 20, 8), Name = "ArtistDetailsInset" }); scroll.Name = "ArtistDetailsScroll"; scroll.Loaded += (_, _) => scroll.ChangeView(null, artistDetailOffset, null, true);
             scroll.ViewChanged += (_, _) => { if (ReferenceEquals(details.Content, scroll)) artistDetailOffset = scroll.VerticalOffset; }; details.Content = scroll; if (artists.IsLoaded) Ui.Animate(details);
         }
         artists.SelectionChanged += (_, _) => { if (artists.SelectedItem is ListViewItem item) { if (selectedArtist != (string)item.Tag) artistDetailOffset = 0; selectedArtist = (string)item.Tag; Select(); } };
